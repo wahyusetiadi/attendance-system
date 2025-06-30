@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useEffect } from 'react';
 import { 
   Users, 
   BookOpen,
@@ -13,41 +16,35 @@ import {
 } from 'lucide-react';
 import { MonthlyChart } from '@/components/charts/MonthlyChart';
 import { AttendancePieChart } from '@/components/charts/AttendancePieChart';
+import { teachersAPI, attendanceAPI, Teacher, AttendanceRecord } from '@/api/api';
 
-const stats = [
-  {
-    title: 'Total Guru',
-    value: '45',
-    icon: Users,
-    color: 'bg-blue-500',
-    // change: '+2 bulan ini',
-    changeType: 'positive'
-  },
-  {
-    title: 'Kehadiran Hari Ini',
-    value: '40',
-    icon: ClockArrowUp,
-    color: 'bg-green-500',
-    // change: '+5 dari minggu lalu',
-    changeType: 'positive'
-  },
-  {
-    title: 'Guru Terlambat Hari Ini',
-    value: '2',
-    icon: ClockAlert,
-    color: 'bg-orange-500',
-    // change: 'Stabil',
-    changeType: 'neutral'
-  },
-  {
-    title: 'Tidak Hadir Hari Ini',
-    value: '3',
-    icon: ClockArrowDown,
-    color: 'bg-red-500',
-    // change: '+2% dari kemarin',
-    changeType: 'positive'
-  },
-];
+// Interface for dashboard stats
+interface DashboardStats {
+  totalTeachers: number;
+  todayPresent: number;
+  todayLate: number;
+  todayAbsent: number;
+  notCheckedIn: number;
+  attendanceRate: number;
+  loading: boolean;
+  error: string | null;
+}
+
+interface LoadingSpinnerProps {
+  size?: 'sm' | 'md' | 'lg';
+}
+
+const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 'sm' }) => {
+  const sizeClasses = {
+    sm: 'w-4 h-4',
+    md: 'w-6 w-6',
+    lg: 'w-8 h-8'
+  };
+
+  return (
+    <div className={`${sizeClasses[size]} animate-spin rounded-full border-2 border-gray-300 border-t-blue-600`}></div>
+  );
+};
 
 const recentActivities = [
   {
@@ -84,39 +81,257 @@ const recentActivities = [
   },
 ];
 
-const monthlyHighlights = [
-  {
-    title: 'Kehadiran Tertinggi',
-    value: '96%',
-    month: 'September',
-    color: 'text-green-600'
-  },
-  {
-    title: 'Guru Baru',
-    value: '3 orang',
-    month: 'November',
-    color: 'text-blue-600'
-  },
-  {
-    title: 'Mata Pelajaran Baru',
-    value: '1 mata pelajaran',
-    month: 'Agustus',
-    color: 'text-purple-600'
-  }
-];
-
 export default function DashboardPage() {
+  const [stats, setStats] = useState<DashboardStats>({
+    totalTeachers: 0,
+    todayPresent: 0,
+    todayLate: 0,
+    todayAbsent: 0,
+    notCheckedIn: 0,
+    attendanceRate: 0,
+    loading: true,
+    error: null
+  });
+
+  // Function to normalize backend data to frontend format (same as attendance page)
+  const normalizeAttendanceRecord = (record: any): AttendanceRecord => {
+    const normalizeStatus = (status: string): AttendanceRecord["status"] => {
+      switch (status?.toUpperCase()) {
+        case "HADIR":
+          return "HADIR";
+        case "TERLAMBAT":
+          return "TERLAMBAT";
+        case "TIDAK_HADIR":
+        case "ALPHA":
+          return "TIDAK HADIR";
+        case "SAKIT":
+          return "SAKIT";
+        case "IZIN":
+          return "IZIN";
+        default:
+          return "TIDAK HADIR";
+      }
+    };
+
+    // Extract time from ISO string (HH:MM format)
+const extractTime = (isoString: string | null): string | null => {
+  if (!isoString) return null;
+
+  // Jika sudah berupa time string tanpa timezone
+  if (/^\d{2}:\d{2}(:\d{2})?$/.test(isoString)) {
+    return isoString.substring(0, 5);
+  }
+
+  // Untuk ISO string (2025-06-30T09:21:00.000Z), ekstrak bagian waktu saja
+  // tanpa konversi timezone
+  if (isoString.includes('T')) {
+    const timePart = isoString.split('T')[1]; // Ambil bagian setelah 'T'
+    if (timePart) {
+      const timeOnly = timePart.split('.')[0]; // Hilangkan milliseconds dan Z
+      return timeOnly.substring(0, 5); // Return HH:MM saja
+    }
+  }
+
+  return null;
+};
+
+
+    const formatDate = (isoString: string): string => {
+      return new Date(isoString).toISOString().split("T")[0];
+    };
+
+    return {
+      // checkIn: !!record.checkIn,
+      id: record.id || undefined,
+      teacherId: record.teacherId,
+      teacherName: record.teacher?.name || null,
+      teacherNip: record.teacher?.nip || null,
+      teacher: record.teacher
+        ? {
+            id: record.teacher.id,
+            name: record.teacher.name,
+            nip: record.teacher.nip || undefined,
+            email: record.teacher.email || undefined,
+          }
+        : undefined,
+      date: formatDate(record.date),
+      checkIn: extractTime(record.checkIn),
+      checkOut: extractTime(record.checkOut),
+      workingHours: record.workingHours || null,
+      status: normalizeStatus(record.status),
+      location: record.location,
+      notes: record.notes,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+    };
+  };
+
+  // Fetch dashboard statistics
+  const fetchDashboardStats = async () => {
+    try {
+      setStats(prev => ({ ...prev, loading: true, error: null }));
+
+      // Get today's date
+      const today = new Date().toISOString().split('T')[0];
+
+      // Fetch all active teachers
+      const teachersResponse = await teachersAPI.getAll({
+        page: 1,
+        limit: 1000,
+        isActive: true
+      });
+
+      if (!teachersResponse.success) {
+        throw new Error('Failed to fetch teachers data');
+      }
+
+      const totalTeachers = teachersResponse.data?.length || 0;
+      const allTeachers = teachersResponse.data || [];
+
+      // Fetch today's attendance records
+      const attendanceResponse = await attendanceAPI.getAll({
+        startDate: today,
+        endDate: today,
+        page: 1,
+        limit: 1000
+      });
+
+      let todayPresent = 0;
+      let todayLate = 0;
+      let todayAbsent = 0;
+      let notCheckedIn = 0;
+      let attendanceRate = 0;
+
+      if (attendanceResponse.success && attendanceResponse.data) {
+        // Normalize attendance records
+        const normalizedRecords = attendanceResponse.data.map(normalizeAttendanceRecord);
+
+        // Create map of teachers who have attendance records today
+        const attendanceMap = new Map<number, AttendanceRecord>();
+        normalizedRecords.forEach((record) => {
+          attendanceMap.set(record.teacherId, record);
+        });
+
+        // Calculate statistics
+        todayPresent = normalizedRecords.filter(record => record.status === 'HADIR').length;
+        todayLate = normalizedRecords.filter(record => record.status === 'TERLAMBAT').length;
+        todayAbsent = normalizedRecords.filter(record => 
+          record.status === 'TIDAK HADIR' || 
+          record.status === 'SAKIT' || 
+          record.status === 'IZIN'
+        ).length;
+
+        // Calculate teachers who haven't checked in (no attendance record today)
+        notCheckedIn = allTeachers.filter(teacher => 
+          teacher.id && !attendanceMap.has(teacher.id)
+        ).length;
+
+        // Calculate attendance rate (present + late) / total teachers
+        const totalPresent = todayPresent + todayLate;
+        attendanceRate = totalTeachers > 0 ? Math.round((totalPresent / totalTeachers) * 100) : 0;
+
+        // console.log('Dashboard Stats Debug:', {
+        //   totalTeachers,
+        //   normalizedRecords: normalizedRecords.length,
+        //   todayPresent,
+        //   todayLate,
+        //   todayAbsent,
+        //   notCheckedIn,
+        //   attendanceRate,
+        //   attendanceMap: Array.from(attendanceMap.entries())
+        // });
+      }
+
+      setStats({
+        totalTeachers,
+        todayPresent,
+        todayLate,
+        todayAbsent,
+        notCheckedIn,
+        attendanceRate,
+        loading: false,
+        error: null
+      });
+
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+      setStats(prev => ({
+        ...prev,
+        loading: false,
+        error: 'Gagal memuat data dashboard'
+      }));
+    }
+  };
+
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchDashboardStats();
+
+    // Set up auto-refresh every 5 minutes
+    const interval = setInterval(fetchDashboardStats, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Create stats array with real data
+  const statsCards = [
+    {
+      title: 'Total Guru',
+      value: stats.loading ? <LoadingSpinner /> : stats.totalTeachers.toString(),
+      icon: Users,
+      color: 'bg-blue-500',
+      changeType: 'neutral' as const
+    },
+    {
+      title: 'Hadir Hari Ini',
+      value: stats.loading ? <LoadingSpinner /> : (stats.todayPresent + stats.todayLate).toString(),
+      icon: ClockArrowUp,
+      color: 'bg-green-500',
+      changeType: 'positive' as const,
+      subtitle: stats.loading ? '' : `${stats.attendanceRate}% kehadiran`
+    },
+    {
+      title: 'Belum Absen',
+      value: stats.loading ? <LoadingSpinner /> : stats.notCheckedIn.toString(),
+      icon: ClockAlert,
+      color: 'bg-orange-500',
+      changeType: 'neutral' as const,
+      subtitle: 'Guru belum check-in'
+    },
+    {
+      title: 'Tidak Hadir',
+      value: stats.loading ? <LoadingSpinner /> : stats.todayAbsent.toString(),
+      icon: ClockArrowDown,
+      color: 'bg-red-500',
+      changeType: 'negative' as const,
+      subtitle: 'Sakit, Izin, Alpha'
+    },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between md:items-center md:flex-row flex-col">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600 mt-2">
             Selamat datang kembali! Berikut adalah ringkasan sistem hari ini.
           </p>
+          <hr className='my-2 md:hidden' />
+          {stats.error && (
+            <div className="mt-2 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-red-500" />
+              <span className="text-sm text-red-600">{stats.error}</span>
+              <button 
+                onClick={fetchDashboardStats}
+                className="text-sm text-red-600 underline hover:no-underline"
+              >
+                Coba lagi
+              </button>
+            </div>
+          )}
         </div>
-        <div className="text-right">
+        <div className="md:text-right text-start">
           <div className="text-sm text-gray-500">
             {new Date().toLocaleDateString('id-ID', { 
               weekday: 'long', 
@@ -131,26 +346,34 @@ export default function DashboardPage() {
               minute: '2-digit' 
             })}
           </div>
+          {!stats.loading && (
+            <button 
+              onClick={fetchDashboardStats}
+              className="text-xs text-blue-600 hover:text-blue-700 mt-1"
+            >
+              Refresh data
+            </button>
+          )}
         </div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
+        {statsCards.map((stat, index) => (
           <div key={index} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <p className="text-sm font-medium text-gray-500 mb-1">{stat.title}</p>
-                <p className="text-3xl font-bold text-gray-900 mb-2">{stat.value}</p>
-                {/* <div className="flex items-center">
-                  <span className={`text-xs font-medium ${
-                    stat.changeType === 'positive' ? 'text-green-600' :
-                    stat.changeType === 'negative' ? 'text-red-600' :
-                    'text-gray-500'
-                  }`}>
-                    {stat.change}
-                  </span>
-                </div> */}
+                <div className="text-3xl font-bold text-gray-900 mb-2 flex items-center">
+                  {stat.value}
+                </div>
+                {stat.subtitle && (
+                  <div className="flex items-center">
+                    <span className="text-xs font-medium text-gray-500">
+                      {stat.subtitle}
+                    </span>
+                  </div>
+                )}
               </div>
               <div className={`p-3 rounded-xl ${stat.color} shadow-lg`}>
                 <stat.icon className="h-6 w-6 text-white" />
@@ -159,6 +382,38 @@ export default function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* Real-time Status Summary */}
+      {!stats.loading && !stats.error && (
+        <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-xl p-6 border border-blue-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Status Kehadiran Hari Ini</h3>
+              <p className="text-sm text-gray-600 mt-1">
+                {stats.todayPresent + stats.todayLate} dari {stats.totalTeachers} guru sudah hadir
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="text-3xl font-bold text-green-600">{stats.attendanceRate}%</div>
+              <div className="text-sm text-gray-500">Tingkat kehadiran</div>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div className="mt-4">
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-green-500 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${stats.attendanceRate}%` }}
+              ></div>
+            </div>
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>0%</span>
+              <span>100%</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -185,113 +440,26 @@ export default function DashboardPage() {
 
           {/* Summary */}
           <div className="mt-6 pt-4 border-t border-gray-200">
-            <h4 className="font-semibold text-gray-900 mb-3">Ringkasan Minggu Ini</h4>
+            <h4 className="font-semibold text-gray-900 mb-3">Ringkasan Hari Ini</h4>
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Rata-rata kehadiran:</span>
-                <span className="font-medium text-green-600">93.5%</span>
+                <span className="text-gray-600">Tingkat kehadiran:</span>
+                <span className="font-medium text-green-600">{stats.attendanceRate}%</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Total keterlambatan:</span>
-                <span className="font-medium text-yellow-600">13 kali</span>
+                <span className="text-gray-600">Total terlambat:</span>
+                <span className="font-medium text-yellow-600">{stats.todayLate} guru</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Tidak hadir:</span>
-                <span className="font-medium text-red-600">8 kali</span>
+                <span className="font-medium text-red-600">{stats.todayAbsent} guru</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Belum absen:</span>
+                <span className="font-medium text-orange-600">{stats.notCheckedIn} guru</span>
               </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Monthly Highlights & Recent Activities */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly Highlights */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Sorotan Bulanan
-            </h2>
-            <BarChart3 className="h-5 w-5 text-gray-400" />
-          </div>
-
-          <div className="space-y-4">
-            {monthlyHighlights.map((highlight, index) => (
-              <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900">{highlight.title}</p>
-                  <p className="text-sm text-gray-500">Bulan {highlight.month}</p>
-                </div>
-                <div className={`text-xl font-bold ${highlight.color}`}>
-                  {highlight.value}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Recent Activities */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Aktivitas Terbaru
-            </h2>
-            <Calendar className="h-5 w-5 text-gray-400" />
-          </div>
-
-          <div className="space-y-4">
-            {recentActivities.map((activity) => (
-              <div key={activity.id} className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                <div className={`p-1 rounded-full ${activity.color}`}>
-                  <activity.icon className="h-4 w-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-900 font-medium">
-                    {activity.message}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {activity.time}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <button className="w-full mt-4 text-sm text-blue-600 hover:text-blue-700 font-medium">
-            Lihat semua aktivitas
-          </button>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hidden">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Aksi Cepat
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button className="flex items-center space-x-3 p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
-            <Users className="h-8 w-8 text-blue-600" />
-            <div className="text-left">
-              <p className="font-medium text-blue-900">Tambah Guru</p>
-              <p className="text-sm text-blue-600">Daftarkan guru baru</p>
-            </div>
-          </button>
-
-          <button className="flex items-center space-x-3 p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
-            <BookOpen className="h-8 w-8 text-green-600" />
-            <div className="text-left">
-              <p className="font-medium text-green-900">Mata Pelajaran</p>
-              <p className="text-sm text-green-600">Kelola kurikulum</p>
-            </div>
-          </button>
-
-          <button className="flex items-center space-x-3 p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors">
-            <BarChart3 className="h-8 w-8 text-purple-600" />
-            <div className="text-left">
-              <p className="font-medium text-purple-900">Laporan</p>
-              <p className="text-sm text-purple-600">Lihat statistik</p>
-            </div>
-          </button>
         </div>
       </div>
     </div>

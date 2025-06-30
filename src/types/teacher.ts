@@ -1,4 +1,3 @@
-// Teacher interface yang sesuai dengan Prisma model
 export interface Teacher {
   id?: number;
   nip?: string;
@@ -10,11 +9,6 @@ export interface Teacher {
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
-  // Legacy fields untuk backward compatibility
-  grade?: string;
-  status?: 'active' | 'inactive';
-  joinDate?: string;
-  avatar?: string;
 }
 
 export interface CreateTeacherRequest {
@@ -37,19 +31,21 @@ export interface UpdateTeacherRequest {
   isActive?: boolean;
 }
 
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: 'admin' | 'teacher';
+export interface TeachersResponse {
+  success: boolean;
+  data: Teacher[];
+  message?: string;
+  total?: number;
+  pagination?: {
+    page: number;
+    limit: number;
+    totalPages: number;
+    totalItems: number;
+  };
 }
 
-export interface DashboardStats {
-  totalTeachers: number;
-  activeTeachers: number;
-  totalSubjects: number;
-  totalGrades: number;
+export interface TeacherResponse {
+  success: boolean;
+  data: Teacher;
+  message: string;
 }
-
-// Export attendance types
-export * from './attendance';

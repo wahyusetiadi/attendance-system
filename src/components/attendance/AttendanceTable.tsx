@@ -1,4 +1,3 @@
-// src/components/attendance/AttendanceTable.tsx
 'use client';
 
 import { useState } from 'react';
@@ -17,7 +16,8 @@ import {
   XCircle,
   AlertCircle,
   Heart,
-  FileText
+  FileText,
+  Trash2
 } from 'lucide-react';
 
 interface AttendanceTableProps {
@@ -25,59 +25,86 @@ interface AttendanceTableProps {
   onRefresh: () => void;
   isLoading: boolean;
   onUpdateRecord?: (updatedRecord: AttendanceRecord) => void;
+  onDeleteRecord?: (id: number) => Promise<boolean>;
+  showDeleteAction?: boolean;
 }
 
-export function AttendanceTable({ data, onRefresh, isLoading, onUpdateRecord }: AttendanceTableProps) {
+export function AttendanceTable({ 
+  data, 
+  onRefresh, 
+  isLoading, 
+  onUpdateRecord,
+  onDeleteRecord ,
+  showDeleteAction = false
+}: AttendanceTableProps) {
   const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [notesModalOpen, setNotesModalOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState<number | null>(null);
 
-  const getStatusIcon = (status: AttendanceRecord['status']) => {
+  // Helper function to check if record is "not recorded" (belum absen)
+  const isNotRecorded = (record: AttendanceRecord) => {
+    return record.notes === 'Belum melakukan absensi' && !record.checkIn && !record.checkOut;
+  };
+
+  const getStatusIcon = (status: AttendanceRecord['status'], record: AttendanceRecord) => {
+    if (isNotRecorded(record)) {
+      return <AlertCircle className="h-4 w-4 text-gray-400" />;
+    }
+
     switch (status) {
-      case 'present':
+      case 'HADIR':
         return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'late':
+      case 'TERLAMBAT':
         return <Clock className="h-4 w-4 text-yellow-500" />;
-      case 'absent':
+      case 'TIDAK HADIR':
         return <XCircle className="h-4 w-4 text-red-500" />;
-      case 'sick':
+      case 'SAKIT':
         return <Heart className="h-4 w-4 text-pink-500" />;
-      case 'permission':
+      case 'IZIN':
         return <FileText className="h-4 w-4 text-purple-500" />;
       default:
         return <AlertCircle className="h-4 w-4 text-gray-500" />;
     }
   };
 
-  const getStatusLabel = (status: AttendanceRecord['status']) => {
+  const getStatusLabel = (status: AttendanceRecord['status'], record: AttendanceRecord) => {
+    if (isNotRecorded(record)) {
+      return 'Belum Absen';
+    }
+
     switch (status) {
-      case 'present':
+      case 'HADIR':
         return 'Hadir';
-      case 'late':
+      case 'TERLAMBAT':
         return 'Terlambat';
-      case 'absent':
+      case 'TIDAK HADIR':
         return 'Tidak Hadir';
-      case 'sick':
+      case 'SAKIT':
         return 'Sakit';
-      case 'permission':
+      case 'IZIN':
         return 'Izin';
       default:
         return 'Unknown';
     }
   };
 
-  const getStatusColor = (status: AttendanceRecord['status']) => {
+  const getStatusColor = (status: AttendanceRecord['status'], record: AttendanceRecord) => {
+    if (isNotRecorded(record)) {
+      return 'bg-gray-100 text-gray-600 border-gray-200';
+    }
+
     switch (status) {
-      case 'present':
+      case 'HADIR':
         return 'bg-green-100 text-green-800 border-green-200';
-      case 'late':
+      case 'TERLAMBAT':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'absent':
+      case 'TIDAK HADIR':
         return 'bg-red-100 text-red-800 border-red-200';
-      case 'sick':
+      case 'SAKIT':
         return 'bg-pink-100 text-pink-800 border-pink-200';
-      case 'permission':
+      case 'IZIN':
         return 'bg-purple-100 text-purple-800 border-purple-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
@@ -105,6 +132,17 @@ export function AttendanceTable({ data, onRefresh, isLoading, onUpdateRecord }: 
     return `${h}j ${m}m`;
   };
 
+  // Generate unique key for each record
+  const generateUniqueKey = (record: AttendanceRecord, index: number) => {
+    // Create a unique key combining multiple identifiers
+    const idPart = record.id ? `id-${record.id}` : '';
+    const teacherPart = `teacher-${record.teacherId}`;
+    const datePart = `date-${record.date}`;
+    const indexPart = `index-${index}`;
+
+    return [idPart, teacherPart, datePart, indexPart].filter(Boolean).join('-');
+  };
+
   // Action Handlers
   const handleViewDetail = (record: AttendanceRecord) => {
     setSelectedRecord(record);
@@ -121,12 +159,33 @@ export function AttendanceTable({ data, onRefresh, isLoading, onUpdateRecord }: 
     setNotesModalOpen(true);
   };
 
+  const handleDelete = async (record: AttendanceRecord) => {
+    if (!record.id || !onDeleteRecord) return;
+
+    const confirmed = confirm(
+      `Apakah Anda yakin ingin menghapus data absensi ${record.teacherName || 'guru'} pada tanggal ${formatDate(record.date)}?`
+    );
+
+    if (!confirmed) return;
+
+    setDeleteLoading(record.id);
+    try {
+      const success = await onDeleteRecord(record.id);
+      if (success) {
+        console.log('Record deleted successfully');
+      }
+    } catch (error) {
+      console.error('Error deleting record:', error);
+    } finally {
+      setDeleteLoading(null);
+    }
+  };
+
   const handleSaveEdit = (updatedRecord: AttendanceRecord) => {
     if (onUpdateRecord) {
       onUpdateRecord(updatedRecord);
     }
     console.log('Updated record:', updatedRecord);
-    // Here you would typically make an API call to save the changes
   };
 
   if (isLoading) {
@@ -134,7 +193,7 @@ export function AttendanceTable({ data, onRefresh, isLoading, onUpdateRecord }: 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">
-            Riwayat Absensi
+            Table Status Absensi
           </h3>
         </div>
         <div className="p-12 text-center">
@@ -166,7 +225,7 @@ export function AttendanceTable({ data, onRefresh, isLoading, onUpdateRecord }: 
         <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900">
-              Riwayat Absensi ({data.length} data)
+              Table Status Absensi ({data.length} data)
             </h3>
             <Button variant="outline" size="sm" onClick={onRefresh} disabled={isLoading}>
               {isLoading ? 'Loading...' : 'Refresh'}
@@ -206,20 +265,20 @@ export function AttendanceTable({ data, onRefresh, isLoading, onUpdateRecord }: 
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {data.map((record, index) => (
-                <tr key={record.id || index} className="hover:bg-gray-50 transition-colors">
+                <tr key={generateUniqueKey(record, index)} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 flex items-center justify-center">
                         <span className="text-sm font-medium text-white">
-                          {record.teacherName?.charAt(0)?.toUpperCase() || 'N'}
+                          {(record.teacherName || record.teacher?.name || 'N').charAt(0)?.toUpperCase()}
                         </span>
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900">
-                          {record.teacherName || 'Unknown'}
+                          {record.teacherName || record.teacher?.name || 'Unknown'}
                         </div>
                         <div className="text-sm text-gray-500 font-mono">
-                          {record.teacherNip || '-'}
+                          {record.teacherNip || record.teacher?.nip || '-'}
                         </div>
                       </div>
                     </div>
@@ -231,12 +290,12 @@ export function AttendanceTable({ data, onRefresh, isLoading, onUpdateRecord }: 
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900 font-mono">
-                      {formatTime(record.clockIn)}
+                      {formatTime(record.checkIn)}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900 font-mono">
-                      {formatTime(record.clockOut)}
+                      {formatTime(record.checkOut)}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -246,9 +305,9 @@ export function AttendanceTable({ data, onRefresh, isLoading, onUpdateRecord }: 
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center space-x-2">
-                      {getStatusIcon(record.status)}
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${getStatusColor(record.status)}`}>
-                        {getStatusLabel(record.status)}
+                      {getStatusIcon(record.status, record)}
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${getStatusColor(record.status, record)}`}>
+                        {getStatusLabel(record.status, record)}
                       </span>
                     </div>
                   </td>
@@ -272,15 +331,20 @@ export function AttendanceTable({ data, onRefresh, isLoading, onUpdateRecord }: 
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        title="Edit"
-                        onClick={() => handleEdit(record)}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      {record.notes && (
+
+                      {/* Only show edit for actual attendance records, not "belum absen" */}
+                      {!isNotRecorded(record) && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          title="Edit"
+                          onClick={() => handleEdit(record)}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                      )}
+
+                      {record.notes && record.notes !== 'Belum melakukan absensi' && (
                         <Button 
                           variant="ghost" 
                           size="sm" 
@@ -288,6 +352,23 @@ export function AttendanceTable({ data, onRefresh, isLoading, onUpdateRecord }: 
                           onClick={() => handleViewNotes(record)}
                         >
                           <MessageSquare className="h-4 w-4 text-blue-500" />
+                        </Button>
+                      )}
+
+                      {/* Only show delete for actual attendance records with ID */}
+                      {showDeleteAction && onDeleteRecord && record.id && !isNotRecorded(record) && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          title="Hapus"
+                          onClick={() => handleDelete(record)}
+                          disabled={deleteLoading === record.id}
+                        >
+                          {deleteLoading === record.id ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500" />
+                          ) : (
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          )}
                         </Button>
                       )}
                     </div>

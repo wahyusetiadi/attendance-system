@@ -2,14 +2,17 @@
 
 import { useState, useEffect } from "react";
 import {
-  AttendanceRecord,
   AttendanceFilter,
   AttendanceSummary,
+  AttendanceRecord,
 } from "@/types/attendance";
 import { AttendanceTable } from "@/components/attendance/AttendanceTable";
 import { AttendanceFilters } from "@/components/attendance/AttendanceFilters";
 import { AttendanceStats } from "@/components/attendance/AttendanceStats";
 import { ExportModal } from "@/components/attendance/ExportModal";
+import { ManualEntryModal } from "@/components/attendance/ManualEntryModal";
+import { useAttendance } from "@/hooks/useAttendance";
+import { useTeachers } from "@/hooks/useTeachers";
 import { Button } from "@/components/ui/Button";
 import {
   Download,
@@ -19,231 +22,265 @@ import {
   Clock,
   Users,
   BarChart3,
+  AlertCircle,
 } from "lucide-react";
-import { ManualEntryModal } from "@/components/attendance/ManualEntryModal";
-
-// Mock data
-const mockAttendanceData: AttendanceRecord[] = [
-  {
-    id: "1",
-    teacherId: "1",
-    teacherName: "Dr. Ahmad Wijaya",
-    teacherNip: "198501152010011001",
-    date: "2025-06-18",
-    clockIn: "07:30:00",
-    clockOut: "15:45:00",
-    status: "present",
-    notes: null,
-    location: "Gedung A",
-    photo: null,
-    workingHours: 8.25,
-  },
-  {
-    id: "2",
-    teacherId: "2",
-    teacherName: "Siti Nurhaliza, S.Pd",
-    teacherNip: "198703122012012002",
-    date: "2025-06-18",
-    clockIn: "08:15:00",
-    clockOut: "16:00:00",
-    status: "late",
-    notes: "Terlambat karena macet",
-    location: "Gedung B",
-    photo: null,
-    workingHours: 7.75,
-  },
-  {
-    id: "3",
-    teacherId: "3",
-    teacherName: "Budi Santoso, M.Pd",
-    teacherNip: "198902282015011003",
-    date: "2025-06-18",
-    clockIn: null,
-    clockOut: null,
-    status: "sick",
-    notes: "Sakit demam",
-    location: null,
-    photo: null,
-    workingHours: null,
-  },
-  {
-    id: "4",
-    teacherId: "4",
-    teacherName: "Maya Sari, S.Pd",
-    teacherNip: "199001052018012004",
-    date: "2025-06-18",
-    clockIn: "07:45:00",
-    clockOut: "15:30:00",
-    status: "present",
-    notes: null,
-    location: "Gedung A",
-    photo: null,
-    workingHours: 7.75,
-  },
-  {
-    id: "5",
-    teacherId: "1",
-    teacherName: "Dr. Ahmad Wijaya",
-    teacherNip: "198501152010011001",
-    date: "2025-06-17",
-    clockIn: "07:25:00",
-    clockOut: "15:50:00",
-    status: "present",
-    notes: null,
-    location: "Gedung A",
-    photo: null,
-    workingHours: 8.42,
-  },
-  {
-    id: "6",
-    teacherId: "5",
-    teacherName: "Rina Wahyuni, S.Pd",
-    teacherNip: "199205102019032005",
-    date: "2025-06-17",
-    clockIn: null,
-    clockOut: null,
-    status: "permission",
-    notes: "Izin urusan keluarga",
-    location: null,
-    photo: null,
-    workingHours: null,
-  },
-];
 
 export default function AttendancePage() {
-  const [attendanceData, setAttendanceData] =
-    useState<AttendanceRecord[]>(mockAttendanceData);
-  const [filteredData, setFilteredData] =
-    useState<AttendanceRecord[]>(mockAttendanceData);
-  const [summary, setSummary] = useState<AttendanceSummary | null>(null);
+  const {
+    attendanceRecords,
+    isLoading,
+    error,
+    pagination,
+    summary,
+    fetchAttendance,
+    createManualEntry,
+    updateRecord,
+    deleteRecord,
+    refresh,
+  } = useAttendance();
+
+  const { teachers } = useTeachers();
+
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isManualEntry, setIsManualEntry] = useState(false);
+  const [isManualEntryOpen, setIsManualEntryOpen] = useState(false);
 
   const defaultFilter: AttendanceFilter = {
-    startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split("T")[0], // 7 hari lalu
-    endDate: new Date().toISOString().split("T")[0], // hari ini
+    startDate: new Date().toISOString().split("T")[0],
+    endDate: new Date().toISOString().split("T")[0],
     sortBy: "date",
     sortOrder: "desc",
   };
 
   const [filter, setFilter] = useState<AttendanceFilter>(defaultFilter);
 
-  // Calculate summary statistics
-  const calculateSummary = (data: AttendanceRecord[]): AttendanceSummary => {
-    const total = data.length;
-    const present = data.filter((record) => record.status === "present").length;
-    const late = data.filter((record) => record.status === "late").length;
-    const absent = data.filter((record) => record.status === "absent").length;
-    const sick = data.filter((record) => record.status === "sick").length;
-    const permission = data.filter(
-      (record) => record.status === "permission"
-    ).length;
+  useEffect(() => {
+    fetchAttendance(filter);
+  }, [filter]);
 
-    const totalWorkingHours = data
-      .filter((record) => record.workingHours !== null)
-      .reduce((sum, record) => sum + (record.workingHours || 0), 0);
+  // Function to normalize backend data to frontend format
+  const normalizeAttendanceRecord = (record: any): AttendanceRecord => {
+    // Convert backend status to frontend format
+    const normalizeStatus = (status: string): AttendanceRecord["status"] => {
+      switch (status?.toUpperCase()) {
+        case "HADIR":
+          return "HADIR";
+        case "TERLAMBAT":
+          return "TERLAMBAT";
+        case "TIDAK_HADIR":
+        case "ALPHA":
+          return "TIDAK HADIR";
+        case "SAKIT":
+          return "SAKIT";
+        case "IZIN":
+          return "IZIN";
+        default:
+          return "TIDAK HADIR";
+      }
+    };
 
-    const recordsWithWorkingHours = data.filter(
-      (record) => record.workingHours !== null
-    ).length;
+    // Calculate working hours if both checkIn and checkOut exist
+    const calculateWorkingHours = (
+      checkIn: string | null,
+      checkOut: string | null
+    ): number | null => {
+      if (!checkIn || !checkOut) return null;
+
+      const startTime = new Date(checkIn);
+      const endTime = new Date(checkOut);
+      const diffMs = endTime.getTime() - startTime.getTime();
+      const diffHours = diffMs / (1000 * 60 * 60); // Convert to hours
+
+      return Math.round(diffHours * 100) / 100; // Round to 2 decimal places
+    };
+
+    // Extract time from ISO string (HH:MM format)
+    // Extract time from ISO string (HH:MM format)
+const extractTime = (isoString: string | null): string | null => {
+  if (!isoString) return null;
+
+  // Jika sudah berupa time string tanpa timezone
+  if (/^\d{2}:\d{2}(:\d{2})?$/.test(isoString)) {
+    return isoString.substring(0, 5);
+  }
+
+  // Untuk ISO string (2025-06-30T09:21:00.000Z), ekstrak bagian waktu saja
+  // tanpa konversi timezone
+  if (isoString.includes('T')) {
+    const timePart = isoString.split('T')[1]; // Ambil bagian setelah 'T'
+    if (timePart) {
+      const timeOnly = timePart.split('.')[0]; // Hilangkan milliseconds dan Z
+      return timeOnly.substring(0, 5); // Return HH:MM saja
+    }
+  }
+
+  return null;
+};
+
+
+    // Format date to YYYY-MM-DD
+    const formatDate = (isoString: string): string => {
+      return new Date(isoString).toISOString().split("T")[0];
+    };
 
     return {
-      totalPresent: present + late, // Present includes late
-      totalLate: late,
-      totalAbsent: absent,
-      totalSick: sick,
-      totalPermission: permission,
-      attendanceRate: total > 0 ? ((present + late) / total) * 100 : 0,
-      averageWorkingHours:
-        recordsWithWorkingHours > 0
-          ? totalWorkingHours / recordsWithWorkingHours
-          : 0,
+      // checkIn: !!record.checkIn, // ✅ ADD MISSING FIELD - Convert to boolean
+      id: record.id || undefined,
+      teacherId: record.teacherId,
+      teacherName: record.teacher?.name || null,
+      teacherNip: record.teacher?.nip || null,
+      teacher: record.teacher
+        ? {
+            id: record.teacher.id,
+            name: record.teacher.name,
+            nip: record.teacher.nip || undefined,
+            email: record.teacher.email || undefined,
+          }
+        : undefined,
+      date: formatDate(record.date),
+      checkIn: extractTime(record.checkIn),
+      checkOut: extractTime(record.checkOut),
+      workingHours: calculateWorkingHours(record.checkIn, record.checkOut),
+      status: normalizeStatus(record.status),
+      location: record.location,
+      notes: record.notes,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
     };
   };
 
-  // Apply filters
-  useEffect(() => {
-    let filtered = [...attendanceData];
+  // Normalize attendance records from backend
+  const normalizedAttendanceRecords: AttendanceRecord[] = attendanceRecords.map(
+    normalizeAttendanceRecord
+  );
 
-    // Date filter
-    filtered = filtered.filter((record) => {
-      const recordDate = new Date(record.date);
-      const startDate = new Date(filter.startDate);
-      const endDate = new Date(filter.endDate);
-      return recordDate >= startDate && recordDate <= endDate;
-    });
+  // ✅ NEW: Function to get filtered attendance data with teacher completion
+  const getFilteredAttendanceData = (): AttendanceRecord[] => {
+    // Check if filter is for a single day (start and end date are the same)
+    const isSingleDay = filter.startDate === filter.endDate;
 
-    // Teacher filter
-    if (filter.teacherId) {
-      filtered = filtered.filter(
-        (record) => record.teacherId === filter.teacherId
+    if (isSingleDay) {
+      // For single day view, show all teachers with their attendance status
+      const filterDate = filter.startDate;
+      const dayAttendanceRecords = normalizedAttendanceRecords.filter(
+        (record) => record.date === filterDate
       );
+
+      // Create map of attendance records by teacherId
+      const attendanceMap = new Map<number, AttendanceRecord>();
+      dayAttendanceRecords.forEach((record) => {
+        attendanceMap.set(record.teacherId, record);
+      });
+
+      // Combine all teachers with their attendance status
+      return teachers
+        .filter((teacher) => teacher.id !== undefined)
+        .map((teacher) => {
+          const teacherId = teacher.id!;
+          const attendanceRecord = attendanceMap.get(teacherId);
+
+          if (attendanceRecord) {
+            // Return existing attendance record
+            return {
+              ...attendanceRecord,
+              teacherName: teacher.name,
+              teacherNip: teacher.nip,
+              teacher: {
+                id: teacherId,
+                name: teacher.name,
+                nip: teacher.nip,
+                email: teacher.email,
+              },
+            };
+          } else {
+            // ✅ FIX: Create "not recorded" entry for teachers without attendance
+            return {
+              // checkIn: false, // ✅ ADD MISSING FIELD
+              id: undefined,
+              teacherId: teacherId,
+              teacherName: teacher.name,
+              teacherNip: teacher.nip,
+              teacher: {
+                id: teacherId,
+                name: teacher.name,
+                nip: teacher.nip,
+                email: teacher.email,
+              },
+              date: filterDate,
+              checkIn: null,
+              checkOut: null,
+              workingHours: null,
+              status: "TIDAK HADIR" as AttendanceRecord["status"], // ✅ FIX: Use valid status
+              location: null,
+              notes: "Belum melakukan absensi",
+              createdAt: undefined,
+              updatedAt: undefined,
+            } as AttendanceRecord;
+          }
+        });
+    } else {
+      // For date range view, show only actual attendance records
+      return normalizedAttendanceRecords;
     }
-
-    // Status filter
-    if (filter.status) {
-      filtered = filtered.filter((record) => record.status === filter.status);
-    }
-
-    // Sorting
-    filtered.sort((a, b) => {
-      let aValue: any, bValue: any;
-
-      switch (filter.sortBy) {
-        case "date":
-          aValue = new Date(a.date);
-          bValue = new Date(b.date);
-          break;
-        case "name":
-          aValue = a.teacherName;
-          bValue = b.teacherName;
-          break;
-        case "status":
-          aValue = a.status;
-          bValue = b.status;
-          break;
-        default:
-          return 0;
-      }
-
-      if (filter.sortOrder === "asc") {
-        return aValue > bValue ? 1 : -1;
-      } else {
-        return aValue < bValue ? 1 : -1;
-      }
-    });
-
-    setFilteredData(filtered);
-    setSummary(calculateSummary(filtered));
-  }, [attendanceData, filter]);
-
-  const handleRefresh = async () => {
-    setIsLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsLoading(false);
   };
 
-  const handleUpdateRecord = (updatedRecord: AttendanceRecord) => {
-    setAttendanceData((prev) =>
-      prev.map((record) =>
-        record.id === updatedRecord.id ? updatedRecord : record
-      )
-    );
+  const displayData = getFilteredAttendanceData();
+  // console.log('Filter:', filter);
+  // console.log('Normalized Records:', normalizedAttendanceRecords);
+  // console.log('Display Data:', displayData);
+
+  // ✅ UPDATE: Get stats based on display data
+  const getStatsFromData = (data: AttendanceRecord[]) => {
+    const isSingleDay = filter.startDate === filter.endDate;
+
+    if (isSingleDay) {
+      // For single day, calculate based on all teachers
+      return {
+        total: data.length,
+        present: data.filter((r) => r.status === "HADIR" || r.status === "TERLAMBAT").length,
+        absent: data.filter((r) => 
+          r.status === "TIDAK HADIR" || r.status === "SAKIT" || r.status === "IZIN"
+        ).length,
+        notRecorded: data.filter((r) => r.notes === "Belum melakukan absensi").length,
+        attendanceRate: data.length > 0 ? 
+          (data.filter((r) => r.status === "HADIR" || r.status === "TERLAMBAT").length / data.length) * 100 : 0,
+      };
+    } else {
+      // For date range, calculate based on actual records
+      return {
+        total: data.length,
+        present: data.filter((r) => r.status === "HADIR" || r.status === "TERLAMBAT").length,
+        absent: data.filter((r) => 
+          r.status === "TIDAK HADIR" || r.status === "SAKIT" || r.status === "IZIN" // ✅ FIX: was "HADIR"
+        ).length,
+        notRecorded: 0, // No "not recorded" in date range view
+        attendanceRate: data.length > 0 ? 
+          (data.filter((r) => r.status === "HADIR" || r.status === "TERLAMBAT").length / data.length) * 100 : 0,
+      };
+    }
   };
 
-  const handleSaveManualEntry = (newRecord: AttendanceRecord) => {
-    setAttendanceData((prev) => [newRecord, ...prev]);
-    console.log("New Manual Entry added:", newRecord);
+  const statsData = getStatsFromData(displayData);
+
+  const handleFilterChange = (newFilter: AttendanceFilter) => {
+    console.log('Filter changed:', newFilter);
+    setFilter(newFilter);
+  };
+
+  const handleUpdateRecord = async (updatedRecord: any) => {
+    if (updatedRecord.id) {
+      await updateRecord(updatedRecord.id, updatedRecord);
+    }
+  };
+
+  const handleSaveManualEntry = async (newRecord: any) => {
+    await createManualEntry(newRecord);
+    setIsManualEntryOpen(false);
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center md:flex-row flex-col">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Absensi Guru</h1>
           <p className="text-gray-600 mt-2">
@@ -251,80 +288,84 @@ export default function AttendancePage() {
           </p>
         </div>
         <div className="flex space-x-3">
-          <Button
-            variant="outline"
-            onClick={handleRefresh}
-            disabled={isLoading}
-          >
+          <Button variant="outline" onClick={refresh} disabled={isLoading}>
             <RefreshCw
               className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
             />
             Refresh
           </Button>
-          <Button variant="outline" onClick={() => setIsExportModalOpen(true)}>
+          <Button
+            variant="outline"
+            onClick={() => setIsExportModalOpen(true)}
+            disabled={attendanceRecords.length === 0}
+          >
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
-          <Button onClick={() => setIsManualEntry(true)}>
+          <Button onClick={() => setIsManualEntryOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Manual Entry
           </Button>
         </div>
       </div>
 
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+            <p className="text-red-700">{error}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refresh}
+              className="ml-auto"
+            >
+              Retry
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Hari Ini</p>
+              <p className="text-sm text-gray-600">
+                {filter.startDate === filter.endDate ? 'Total Guru' : 'Total Records'}
+              </p>
               <p className="text-2xl font-bold text-blue-600">
-                {
-                  attendanceData.filter(
-                    (r) => r.date === new Date().toISOString().split("T")[0]
-                  ).length
-                }
+                {statsData.total}
               </p>
             </div>
-            <Calendar className="h-8 w-8 text-blue-500" />
+            <Users className="h-8 w-8 text-blue-500" />
           </div>
         </div>
 
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Hadir Hari Ini</p>
+              <p className="text-sm text-gray-600">Hadir</p>
               <p className="text-2xl font-bold text-green-600">
-                {
-                  attendanceData.filter(
-                    (r) =>
-                      r.date === new Date().toISOString().split("T")[0] &&
-                      (r.status === "present" || r.status === "late")
-                  ).length
-                }
+                {statsData.present}
               </p>
             </div>
-            <Users className="h-8 w-8 text-green-500" />
+            <Calendar className="h-8 w-8 text-green-500" />
           </div>
         </div>
 
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Tidak Hadir</p>
-              <p className="text-2xl font-bold text-red-600">
-                {
-                  attendanceData.filter(
-                    (r) =>
-                      r.date === new Date().toISOString().split("T")[0] &&
-                      (r.status === "absent" ||
-                        r.status === "sick" ||
-                        r.status === "permission")
-                  ).length
-                }
+              <p className="text-sm text-gray-600">
+                {filter.startDate === filter.endDate ? 'Belum Absen' : 'Tidak Hadir'}
+              </p>
+              <p className="text-2xl font-bold text-orange-600">
+                {filter.startDate === filter.endDate ? statsData.notRecorded : statsData.absent}
               </p>
             </div>
-            <Clock className="h-8 w-8 text-red-500" />
+            <Clock className="h-8 w-8 text-orange-500" />
           </div>
         </div>
 
@@ -333,47 +374,66 @@ export default function AttendancePage() {
             <div>
               <p className="text-sm text-gray-600">Tingkat Kehadiran</p>
               <p className="text-2xl font-bold text-purple-600">
-                {summary ? `${summary.attendanceRate.toFixed(1)}%` : "0%"}
+                {statsData.attendanceRate.toFixed(1)}%
               </p>
             </div>
             <BarChart3 className="h-8 w-8 text-purple-500" />
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Filters */}
       <AttendanceFilters
         filter={filter}
-        onFilterChange={setFilter}
-        attendanceData={attendanceData}
+        onFilterChange={handleFilterChange}
+        attendanceData={normalizedAttendanceRecords}
+        teachers={teachers}
       />
 
       {/* Summary Statistics */}
       {summary && (
-        <AttendanceStats summary={summary} totalRecords={filteredData.length} />
+        <AttendanceStats
+          summary={summary}
+          totalRecords={normalizedAttendanceRecords.length}
+        />
       )}
 
-      {/* Attendance Table */}
+      {/* ✅ FIXED: Use displayData instead of combinedData */}
       <AttendanceTable
-        data={filteredData}
-        onRefresh={handleRefresh}
+        data={displayData}
+        onRefresh={refresh}
         isLoading={isLoading}
         onUpdateRecord={handleUpdateRecord}
+        onDeleteRecord={deleteRecord}
       />
 
-      {/* Export Modal */}
+      {/* Pagination */}
+      {pagination && (
+        <div className="bg-white p-4 rounded-lg border border-gray-200">
+          <p className="text-sm text-gray-600 text-center">
+            Showing {displayData.length} {filter.startDate === filter.endDate ? 'teachers' : 'records'}
+            {filter.startDate === filter.endDate 
+              ? ` (${filter.startDate})` 
+              : ` (${filter.startDate} - ${filter.endDate})`
+            }
+          </p>
+        </div>
+      )}
+
+      {/* Modals */}
       <ExportModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
-        data={filteredData}
+        data={normalizedAttendanceRecords}
         filter={filter}
       />
 
       <ManualEntryModal
-        isOpen={isManualEntry}
-        onClose={() => setIsManualEntry(false)}
+        isOpen={isManualEntryOpen}
+        onClose={() => setIsManualEntryOpen(false)}
         onSave={handleSaveManualEntry}
-        existingRecords={attendanceData}
+        teachers={teachers}
+        existingRecords={normalizedAttendanceRecords}
       />
     </div>
   );

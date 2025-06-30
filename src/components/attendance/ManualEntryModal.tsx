@@ -1,8 +1,8 @@
-// src/components/attendance/ManualEntryModal.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { AttendanceRecord } from '@/types/attendance';
+import { Teacher } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { 
@@ -19,33 +19,29 @@ import {
   Plus
 } from 'lucide-react';
 
-// Mock data guru untuk dropdown
-const mockTeachers = [
-  { id: '1', name: 'Dr. Ahmad Wijaya', nip: '198501152010011001' },
-  { id: '2', name: 'Siti Nurhaliza, S.Pd', nip: '198703122012012002' },
-  { id: '3', name: 'Budi Santoso, M.Pd', nip: '198902282015011003' },
-  { id: '4', name: 'Maya Sari, S.Pd', nip: '199001052018012004' },
-  { id: '5', name: 'Rina Wahyuni, S.Pd', nip: '199205102019032005' },
-  { id: '6', name: 'Agung Prasetyo, S.Pd', nip: '199103152020011006' },
-  { id: '7', name: 'Dewi Kartika, M.Pd', nip: '198812202018012007' },
-];
-
 interface ManualEntryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (newRecord: AttendanceRecord) => void;
+  onSave: (newRecord: any) => void;
+  teachers: Teacher[];
   existingRecords: AttendanceRecord[];
 }
 
-export function ManualEntryModal({ isOpen, onClose, onSave, existingRecords }: ManualEntryModalProps) {
+export function ManualEntryModal({ 
+  isOpen, 
+  onClose, 
+  onSave, 
+  teachers, 
+  existingRecords 
+}: ManualEntryModalProps) {
   const [formData, setFormData] = useState({
-    teacherId: '',
+    teacherId: 0,
     teacherName: '',
     teacherNip: '',
     date: new Date().toISOString().split('T')[0],
-    clockIn: '',
-    clockOut: '',
-    status: 'present' as AttendanceRecord['status'],
+    checkIn: '', // ← Use checkIn instead of clockIn
+    checkOut: '', // ← Use checkOut instead of clockOut
+    status: 'HADIR' as string, // ← Use backend status format
     location: '',
     notes: ''
   });
@@ -60,13 +56,13 @@ export function ManualEntryModal({ isOpen, onClose, onSave, existingRecords }: M
   useEffect(() => {
     if (isOpen) {
       setFormData({
-        teacherId: '',
+        teacherId: 0,
         teacherName: '',
         teacherNip: '',
         date: new Date().toISOString().split('T')[0],
-        clockIn: '',
-        clockOut: '',
-        status: 'present',
+        checkIn: '', // ← Use checkIn
+        checkOut: '', // ← Use checkOut
+        status: 'HADIR', // ← Default to backend format
         location: '',
         notes: ''
       });
@@ -93,17 +89,17 @@ export function ManualEntryModal({ isOpen, onClose, onSave, existingRecords }: M
 
   if (!isOpen) return null;
 
-  const filteredTeachers = mockTeachers.filter(teacher =>
+  const filteredTeachers = teachers.filter(teacher =>
     teacher.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    teacher.nip.includes(searchTerm)
+    (teacher.nip && teacher.nip.includes(searchTerm))
   );
 
-  const handleTeacherSelect = (teacher: typeof mockTeachers[0]) => {
+  const handleTeacherSelect = (teacher: Teacher) => {
     setFormData(prev => ({
       ...prev,
-      teacherId: teacher.id,
+      teacherId: teacher.id!,
       teacherName: teacher.name,
-      teacherNip: teacher.nip
+      teacherNip: teacher.nip || ''
     }));
     setSearchTerm(teacher.name);
     setShowTeacherDropdown(false);
@@ -118,11 +114,11 @@ export function ManualEntryModal({ isOpen, onClose, onSave, existingRecords }: M
     }
   };
 
-  const calculateWorkingHours = (clockIn: string, clockOut: string): number | null => {
-    if (!clockIn || !clockOut) return null;
+  const calculateWorkingHours = (checkIn: string, checkOut: string): number | null => {
+    if (!checkIn || !checkOut) return null;
 
-    const [inHour, inMinute] = clockIn.split(':').map(Number);
-    const [outHour, outMinute] = clockOut.split(':').map(Number);
+    const [inHour, inMinute] = checkIn.split(':').map(Number);
+    const [outHour, outMinute] = checkOut.split(':').map(Number);
 
     const inTime = inHour + inMinute / 60;
     const outTime = outHour + outMinute / 60;
@@ -130,45 +126,63 @@ export function ManualEntryModal({ isOpen, onClose, onSave, existingRecords }: M
     return Math.max(0, outTime - inTime);
   };
 
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
+  // Create full DateTime string for backend
+  const createDateTime = (date: string, time: string): string => {
+    if (!time) return '';
+    return `${date}T${time}:00.000Z`;
+  };
 
-    // Required fields
-    if (!formData.teacherId) {
-      newErrors.teacherId = 'Pilih guru terlebih dahulu';
+const validateForm = (): boolean => {
+  const newErrors: Record<string, string> = {};
+
+  // Required fields
+  if (!formData.teacherId) {
+    newErrors.teacherId = 'Pilih guru terlebih dahulu';
+  }
+
+  if (!formData.date) {
+    newErrors.date = 'Tanggal harus diisi';
+  }
+
+  // Status-specific validations
+  if (formData.status === 'HADIR' || formData.status === 'TERLAMBAT') {
+    if (!formData.checkIn) {
+      newErrors.checkIn = 'Jam masuk harus diisi untuk status hadir/terlambat';
     }
+  }
 
-    if (!formData.date) {
-      newErrors.date = 'Tanggal harus diisi';
+  // Time validation
+  if (formData.checkIn && formData.checkOut) {
+    const workingHours = calculateWorkingHours(formData.checkIn, formData.checkOut);
+    if (workingHours !== null && workingHours < 0) {
+      newErrors.checkOut = 'Jam keluar tidak boleh lebih awal dari jam masuk';
     }
+  }
 
-    // Status-specific validations
-    if (formData.status === 'present' || formData.status === 'late') {
-      if (!formData.clockIn) {
-        newErrors.clockIn = 'Jam masuk harus diisi untuk status hadir/terlambat';
-      }
-    }
-
-    // Time validation
-    if (formData.clockIn && formData.clockOut) {
-      const workingHours = calculateWorkingHours(formData.clockIn, formData.clockOut);
-      if (workingHours !== null && workingHours < 0) {
-        newErrors.clockOut = 'Jam keluar tidak boleh lebih awal dari jam masuk';
-      }
-    }
-
-    // Date validation (not future date)
-    const selectedDate = new Date(formData.date);
+  // ✅ BETTER: Date validation using date comparison
+  if (formData.date) {
+    // Create dates using UTC to avoid timezone issues
+    const selectedDate = new Date(formData.date + 'T00:00:00Z');
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
 
-    if (selectedDate > today) {
+    // Set today to start of day in local timezone
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    // Convert selected date to local timezone for comparison
+    const selectedLocalDate = new Date(selectedDate.getUTCFullYear(), selectedDate.getUTCMonth(), selectedDate.getUTCDate());
+
+    // console.log('Selected date (local):', selectedLocalDate.toDateString());
+    // console.log('Today (start of day):', todayStart.toDateString());
+
+    if (selectedLocalDate > todayStart) {
       newErrors.date = 'Tidak dapat membuat absensi untuk tanggal masa depan';
     }
+  }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+};
+
 
   const handleSave = async () => {
     if (!validateForm()) return;
@@ -181,32 +195,20 @@ export function ManualEntryModal({ isOpen, onClose, onSave, existingRecords }: M
     setIsLoading(true);
 
     try {
-      // Calculate working hours
-      const workingHours = calculateWorkingHours(
-        formData.clockIn || '', 
-        formData.clockOut || ''
-      );
-
-      // Create new record
-      const newRecord: AttendanceRecord = {
-        id: `manual_${Date.now()}`, // Generate unique ID
+      // Create new record with backend format
+      const newRecord = {
         teacherId: formData.teacherId,
-        teacherName: formData.teacherName,
-        teacherNip: formData.teacherNip,
-        date: formData.date,
-        clockIn: formData.clockIn || null,
-        clockOut: formData.clockOut || null,
-        status: formData.status,
-        location: formData.location || null,
-        notes: formData.notes || null,
-        photo: null,
-        workingHours
+        date: formData.date, // Send as date string, backend will convert
+        checkIn: formData.checkIn ? createDateTime(formData.date, formData.checkIn) : undefined,
+        checkOut: formData.checkOut ? createDateTime(formData.date, formData.checkOut) : undefined,
+        status: formData.status, // Backend status format
+        location: formData.location || undefined,
+        notes: formData.notes || undefined,
       };
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('Sending manual entry data:', newRecord);
 
-      onSave(newRecord);
+      await onSave(newRecord);
       onClose();
     } catch (error) {
       console.error('Error saving manual entry:', error);
@@ -215,12 +217,13 @@ export function ManualEntryModal({ isOpen, onClose, onSave, existingRecords }: M
     }
   };
 
+  // Backend status options
   const statusOptions = [
-    { value: 'present', label: 'Hadir', color: 'text-green-600' },
-    { value: 'late', label: 'Terlambat', color: 'text-yellow-600' },
-    { value: 'absent', label: 'Tidak Hadir', color: 'text-red-600' },
-    { value: 'sick', label: 'Sakit', color: 'text-pink-600' },
-    { value: 'permission', label: 'Izin', color: 'text-purple-600' }
+    { value: 'HADIR', label: 'Hadir', color: 'text-green-600' },
+    { value: 'TERLAMBAT', label: 'Terlambat', color: 'text-yellow-600' },
+    { value: 'TIDAK_HADIR', label: 'Tidak Hadir', color: 'text-red-600' },
+    { value: 'SAKIT', label: 'Sakit', color: 'text-pink-600' },
+    { value: 'IZIN', label: 'Izin', color: 'text-purple-600' }
   ];
 
   const locationOptions = [
@@ -301,7 +304,7 @@ export function ManualEntryModal({ isOpen, onClose, onSave, existingRecords }: M
                             className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
                           >
                             <div className="font-medium text-gray-900">{teacher.name}</div>
-                            <div className="text-sm text-gray-500">NIP: {teacher.nip}</div>
+                            <div className="text-sm text-gray-500">NIP: {teacher.nip || '-'}</div>
                           </button>
                         ))
                       ) : (
@@ -385,15 +388,15 @@ export function ManualEntryModal({ isOpen, onClose, onSave, existingRecords }: M
                   </label>
                   <input
                     type="time"
-                    value={formData.clockIn}
-                    onChange={(e) => handleInputChange('clockIn', e.target.value)}
-                    disabled={formData.status === 'absent' || formData.status === 'sick'}
+                    value={formData.checkIn}
+                    onChange={(e) => handleInputChange('checkIn', e.target.value)}
+                    disabled={formData.status === 'TIDAK_HADIR' || formData.status === 'SAKIT'}
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 ${
-                      errors.clockIn ? 'border-red-300' : 'border-gray-300'
+                      errors.checkIn ? 'border-red-300' : 'border-gray-300'
                     }`}
                   />
-                  {errors.clockIn && (
-                    <p className="mt-1 text-sm text-red-600">{errors.clockIn}</p>
+                  {errors.checkIn && (
+                    <p className="mt-1 text-sm text-red-600">{errors.checkIn}</p>
                   )}
                 </div>
 
@@ -404,26 +407,26 @@ export function ManualEntryModal({ isOpen, onClose, onSave, existingRecords }: M
                   </label>
                   <input
                     type="time"
-                    value={formData.clockOut}
-                    onChange={(e) => handleInputChange('clockOut', e.target.value)}
-                    disabled={formData.status === 'absent' || formData.status === 'sick'}
+                    value={formData.checkOut}
+                    onChange={(e) => handleInputChange('checkOut', e.target.value)}
+                    disabled={formData.status === 'TIDAK_HADIR' || formData.status === 'SAKIT'}
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 ${
-                      errors.clockOut ? 'border-red-300' : 'border-gray-300'
+                      errors.checkOut ? 'border-red-300' : 'border-gray-300'
                     }`}
                   />
-                  {errors.clockOut && (
-                    <p className="mt-1 text-sm text-red-600">{errors.clockOut}</p>
+                  {errors.checkOut && (
+                    <p className="mt-1 text-sm text-red-600">{errors.checkOut}</p>
                   )}
                 </div>
               </div>
 
               {/* Working Hours Display */}
-              {formData.clockIn && formData.clockOut && (
+              {formData.checkIn && formData.checkOut && (
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
                   <div className="flex items-center space-x-2">
                     <Clock className="h-4 w-4 text-blue-600" />
                     <span className="text-sm font-medium text-blue-800">
-                      Total Jam Kerja: {calculateWorkingHours(formData.clockIn, formData.clockOut)?.toFixed(2)} jam
+                      Total Jam Kerja: {calculateWorkingHours(formData.checkIn, formData.checkOut)?.toFixed(2)} jam
                     </span>
                   </div>
                 </div>

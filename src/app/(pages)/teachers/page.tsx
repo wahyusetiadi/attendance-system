@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { TeacherList } from '@/components/TeacherList';
 import { TeacherForm } from '@/features/teachers/components/TeacherForm';
 import { ImportModal } from '@/features/teachers/components/ImportModal';
 import { ExportModal } from '@/features/teachers/components/ExportModal';
-import { Teacher } from '@/types';
+import { TeacherList } from '@/features/teachers/components/TeacherList';
+import { Teacher, CreateTeacherRequest } from '@/types';
+import { useTeachers } from '@/hooks/useTeachers';
 import { Button } from '@/components/ui/Button';
 import { 
   Plus, 
@@ -15,85 +16,29 @@ import {
   Users,
   UserCheck,
   UserX,
-  BookOpen
+  BookOpen,
+  AlertCircle
 } from 'lucide-react';
 
-// Mock data - nanti ganti dengan API
-const mockTeachers: Teacher[] = [
-  {
-    id: '1',
-    nip: '198501152010011001',
-    name: 'Dr. Ahmad Wijaya',
-    email: 'ahmad.wijaya@sekolah.edu',
-    phone: '081234567890',
-    address: 'Jl. Pendidikan No. 123, Jakarta',
-    subject: 'Matematika',
-    grade: 'X, XI, XII',
-    status: 'active',
-    joinDate: '2020-01-15',
-    avatar: undefined
-  },
-  {
-    id: '2',
-    nip: '198703122012012002',
-    name: 'Siti Nurhaliza, S.Pd',
-    email: 'siti.nurhaliza@sekolah.edu',
-    phone: '081234567891',
-    address: 'Jl. Guru Raya No. 45, Jakarta',
-    subject: 'Bahasa Indonesia',
-    grade: 'X, XI',
-    status: 'active',
-    joinDate: '2021-03-20',
-    avatar: undefined
-  },
-  {
-    id: '3',
-    nip: '198902282015011003',
-    name: 'Budi Santoso, M.Pd',
-    email: 'budi.santoso@sekolah.edu',
-    phone: '081234567892',
-    address: 'Jl. Ilmu No. 67, Jakarta',
-    subject: 'Fisika',
-    grade: 'XI, XII',
-    status: 'active',
-    joinDate: '2019-08-10',
-    avatar: undefined
-  },
-  {
-    id: '4',
-    nip: '199001052018012004',
-    name: 'Maya Sari, S.Pd',
-    email: 'maya.sari@sekolah.edu',
-    phone: '081234567893',
-    address: 'Jl. Kimia No. 89, Jakarta',
-    subject: 'Kimia',
-    grade: 'X, XI',
-    status: 'inactive',
-    joinDate: '2022-01-05',
-    avatar: undefined
-  },
-  {
-    id: '5',
-    nip: '199205102019032005',
-    name: 'Rina Wahyuni, S.Pd',
-    email: 'rina.wahyuni@sekolah.edu',
-    phone: '081234567894',
-    address: 'Jl. Bahasa No. 12, Jakarta',
-    subject: 'Bahasa Inggris',
-    grade: 'X, XI, XII',
-    status: 'active',
-    joinDate: '2021-08-15',
-    avatar: undefined
-  }
-];
-
 export default function TeachersPage() {
-  const [teachers, setTeachers] = useState<Teacher[]>(mockTeachers);
+  const {
+    teachers,
+    isLoading,
+    error,
+    pagination,
+    createTeacher,
+    updateTeacher,
+    deleteTeacher,
+    toggleTeacherStatus,
+    refresh,
+    fetchTeachers
+  } = useTeachers();
+
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | undefined>();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAdd = () => {
     setEditingTeacher(undefined);
@@ -105,49 +50,68 @@ export default function TeachersPage() {
     setIsFormOpen(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: number) => {
     if (confirm('Apakah Anda yakin ingin menghapus guru ini?')) {
-      setTeachers(prev => prev.filter(teacher => teacher.id !== id));
+      const success = await deleteTeacher(id);
+      if (success) {
+        console.log('Teacher deleted successfully');
+      }
     }
   };
 
-  const handleSave = (teacher: Teacher) => {
-    if (editingTeacher) {
-      // Update existing teacher
-      setTeachers(prev => prev.map(t => t.id === teacher.id ? teacher : t));
-    } else {
-      // Add new teacher
-      const newTeacher = { ...teacher, id: Date.now().toString() };
-      setTeachers(prev => [...prev, newTeacher]);
+  const handleToggleStatus = async (id: number) => {
+    const updatedTeacher = await toggleTeacherStatus(id);
+    if (updatedTeacher) {
+      console.log('Teacher status updated successfully');
     }
-    setIsFormOpen(false);
-    setEditingTeacher(undefined);
+  };
+
+  const handleSave = async (teacherData: CreateTeacherRequest) => {
+    setIsSubmitting(true);
+
+    try {
+      let success = false;
+
+      if (editingTeacher?.id) {
+        // Update existing teacher
+        const updatedTeacher = await updateTeacher(editingTeacher.id, teacherData);
+        success = !!updatedTeacher;
+      } else {
+        // Create new teacher
+        const newTeacher = await createTeacher(teacherData);
+        success = !!newTeacher;
+      }
+
+      if (success) {
+        setIsFormOpen(false);
+        setEditingTeacher(undefined);
+        // Optionally show success message
+      }
+    } catch (error) {
+      console.error('Error saving teacher:', error);
+      // Optionally show error message
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleImportSuccess = (importedTeachers: Teacher[]) => {
-    setTeachers(prev => [...prev, ...importedTeachers]);
+    refresh();
     setIsImportModalOpen(false);
   };
 
-  const handleRefresh = async () => {
-    setIsLoading(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsLoading(false);
-  };
-
-  // Statistics
+  // Statistics berdasarkan struktur baru
   const stats = {
     total: teachers.length,
-    active: teachers.filter(t => t.status === 'active').length,
-    inactive: teachers.filter(t => t.status === 'inactive').length,
-    subjects: new Set(teachers.map(t => t.subject)).size
+    active: teachers.filter(t => t.isActive || t.status === 'active').length,
+    inactive: teachers.filter(t => !t.isActive || t.status === 'inactive').length,
+    subjects: new Set(teachers.map(t => t.subject).filter(Boolean)).size
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between md:items-center md:flex-row flex-col">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Manajemen Guru</h1>
           <p className="text-gray-600 mt-2">Kelola data guru dan informasi terkait</p>
@@ -155,32 +119,52 @@ export default function TeachersPage() {
         <div className="flex space-x-3">
           <Button 
             variant="outline" 
-            onClick={handleRefresh}
+            onClick={refresh}
             disabled={isLoading}
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button 
+          {/* <Button 
             variant="outline"
             onClick={() => setIsImportModalOpen(true)}
+            disabled={isLoading}
           >
             <Upload className="h-4 w-4 mr-2" />
             Import Excel
-          </Button>
+          </Button> */}
           <Button 
             variant="outline"
             onClick={() => setIsExportModalOpen(true)}
+            disabled={isLoading || teachers.length === 0}
           >
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
-          <Button onClick={handleAdd}>
+          <Button onClick={handleAdd} disabled={isLoading}>
             <Plus className="h-4 w-4 mr-2" />
             Tambah Guru
           </Button>
         </div>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+            <p className="text-red-700">{error}</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={refresh}
+              className="ml-auto"
+            >
+              Retry
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -214,7 +198,7 @@ export default function TeachersPage() {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        {/* <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Mata Pelajaran</p>
@@ -222,16 +206,38 @@ export default function TeachersPage() {
             </div>
             <BookOpen className="h-8 w-8 text-purple-500" />
           </div>
-        </div>
+        </div> */}
       </div>
 
-      {/* Teacher List */}
-      <TeacherList
-        teachers={teachers}
-        onAdd={handleAdd}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+      {/* Pagination Info */}
+      {pagination && (
+        <div className="bg-white p-4 rounded-lg border border-gray-200">
+          <p className="text-sm text-gray-600">
+            Showing {teachers.length} of {pagination.totalItems} teachers 
+            (Page {pagination.page} of {pagination.totalPages})
+          </p>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {isLoading && teachers.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+          <div className="flex items-center justify-center">
+            <RefreshCw className="h-6 w-6 animate-spin text-blue-500 mr-2" />
+            <p className="text-gray-600">Loading teachers...</p>
+          </div>
+        </div>
+      ) : (
+        /* Teacher List */
+        <TeacherList
+          teachers={teachers}
+          onAdd={handleAdd}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onToggleStatus={handleToggleStatus}
+          isLoading={isLoading}
+        />
+      )}
 
       {/* Modals */}
       {isFormOpen && (
@@ -242,6 +248,7 @@ export default function TeachersPage() {
             setIsFormOpen(false);
             setEditingTeacher(undefined);
           }}
+          isLoading={isSubmitting}
         />
       )}
 

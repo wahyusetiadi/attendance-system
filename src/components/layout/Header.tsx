@@ -1,73 +1,66 @@
 'use client';
 
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
-import { Bell, User, Search, Menu, MessageSquare } from 'lucide-react';
+import { LogOut, User, Menu } from 'lucide-react';
 
-export function Header() {
+interface HeaderProps {
+  onMenuClick: () => void;
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
+  const { user, logout } = useAuth();
+
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
-      <div className="flex items-center justify-between px-6 py-4">
+    <header className="bg-white shadow-sm border-b border-gray-200 px-4 sm:px-6 py-4">
+      <div className="flex justify-between items-center">
         <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="sm" className="lg:hidden">
-            <Menu className="h-5 w-5" />
-          </Button>
+          {/* ✅ Mobile Menu Button */}
+          <button
+            onClick={onMenuClick}
+            className="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 lg:hidden"
+          >
+            <Menu className="h-6 w-6" />
+          </button>
 
-          <div className="hidden md:block">
-            <h1 className="text-2xl font-bold text-gray-900">
-              Sistem Manajemen Guru
+          {/* ✅ Page Title */}
+          <div>
+            <h1 className="text-lg sm:text-xl font-semibold text-gray-900">
+              E-Presensi Dashboard
             </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Kelola data guru dengan mudah dan efisien
+            <p className="text-sm text-gray-500 hidden sm:block">
+              Sistem Manajemen Kehadiran
             </p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-4">
-          {/* Search Bar */}
-          <div className="hidden md:block relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-gray-400" />
+        {/* ✅ User Section */}
+        <div className="flex items-center space-x-2 sm:space-x-4">
+          {/* User Info */}
+          <div className="hidden sm:flex items-center space-x-2">
+            <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
+              <User className="h-4 w-4 text-blue-600" />
             </div>
-            <input
-              type="search"
-              placeholder="Search..."
-              className="pl-10 pr-4 py-2.5 w-80 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm"
-            />
-          </div>
-
-          {/* Quick Actions */}
-          <div className="flex items-center space-x-2">
-            {/* Messages */}
-            <Button variant="ghost" size="sm" className="relative hover:bg-blue-50">
-              <MessageSquare className="h-5 w-5 text-gray-600" />
-              <span className="absolute -top-1 -right-1 h-4 w-4 bg-green-500 rounded-full text-xs text-white flex items-center justify-center font-medium">
-                2
-              </span>
-            </Button>
-
-            {/* Notifications */}
-            <Button variant="ghost" size="sm" className="relative hover:bg-blue-50">
-              <Bell className="h-5 w-5 text-gray-600" />
-              <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center font-medium">
-                5
-              </span>
-            </Button>
-          </div>
-
-          {/* User Profile */}
-          <div className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 rounded-xl p-2 transition-colors">
-            <div className="h-9 w-9 bg-blue-600 rounded-full flex items-center justify-center shadow-lg">
-              <User className="h-5 w-5 text-white" />
-            </div>
-            <div className="hidden md:block text-left">
-              <p className="text-sm font-semibold text-gray-700">
-                Admin User
+            <div className="hidden md:block">
+              <p className="text-sm font-medium text-gray-700 truncate max-w-32">
+                {user?.name || user?.email}
               </p>
               <p className="text-xs text-gray-500">
                 Administrator
               </p>
             </div>
           </div>
+
+          {/* Logout Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={logout}
+            className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Logout</span>
+          </Button>
         </div>
       </div>
     </header>

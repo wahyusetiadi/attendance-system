@@ -30,15 +30,15 @@ export function AttendanceDetailModal({ isOpen, onClose, record }: AttendanceDet
 
   const getStatusIcon = (status: AttendanceRecord['status']) => {
     switch (status) {
-      case 'present':
+      case 'HADIR':
         return <CheckCircle className="h-6 w-6 text-green-500" />;
-      case 'late':
+      case 'TERLAMBAT':
         return <Clock className="h-6 w-6 text-yellow-500" />;
-      case 'absent':
+      case 'TIDAK HADIR':
         return <XCircle className="h-6 w-6 text-red-500" />;
-      case 'sick':
+      case 'SAKIT':
         return <Heart className="h-6 w-6 text-pink-500" />;
-      case 'permission':
+      case 'IZIN':
         return <FileText className="h-6 w-6 text-purple-500" />;
       default:
         return <AlertCircle className="h-6 w-6 text-gray-500" />;
@@ -47,15 +47,15 @@ export function AttendanceDetailModal({ isOpen, onClose, record }: AttendanceDet
 
   const getStatusLabel = (status: AttendanceRecord['status']) => {
     switch (status) {
-      case 'present':
+      case 'HADIR':
         return 'Hadir';
-      case 'late':
+      case 'TERLAMBAT':
         return 'Terlambat';
-      case 'absent':
+      case 'TIDAK HADIR':
         return 'Tidak Hadir';
-      case 'sick':
+      case 'SAKIT':
         return 'Sakit';
-      case 'permission':
+      case 'IZIN':
         return 'Izin';
       default:
         return 'Unknown';
@@ -110,7 +110,7 @@ export function AttendanceDetailModal({ isOpen, onClose, record }: AttendanceDet
             <div className="flex items-center space-x-4 mb-6 p-4 bg-gray-50 rounded-lg">
               <div className="h-12 w-12 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 flex items-center justify-center">
                 <span className="text-lg font-medium text-white">
-                  {record.teacherName.charAt(0).toUpperCase()}
+                  {/* {record.teacherName.charAt(0).toUpperCase()} */}
                 </span>
               </div>
               <div>
@@ -192,7 +192,7 @@ export function AttendanceDetailModal({ isOpen, onClose, record }: AttendanceDet
             )}
 
             {/* Photo */}
-            {record.photo ? (
+            {/* {record.photo ? (
               <div className="mt-6">
                 <div className="flex items-center space-x-2 mb-3">
                   <Camera className="h-5 w-5 text-gray-400" />
@@ -209,7 +209,7 @@ export function AttendanceDetailModal({ isOpen, onClose, record }: AttendanceDet
                 <Camera className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                 <p className="text-sm text-gray-500">Tidak ada foto absensi</p>
               </div>
-            )}
+            )} */}
           </div>
 
           {/* Footer */}

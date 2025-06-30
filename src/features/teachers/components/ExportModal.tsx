@@ -64,6 +64,39 @@ export function ExportModal({ isOpen, onClose, teachers }: ExportModalProps) {
     { key: 'joinDate', label: 'Tanggal Bergabung', category: 'employment' }
   ];
 
+  // ✅ Helper function to safely parse date
+  const safeParseDate = (dateString: string | undefined): Date => {
+    if (!dateString) {
+      return new Date(0); // Return epoch date for undefined values
+    }
+
+    const parsedDate = new Date(dateString);
+
+    // Check if date is valid
+    if (isNaN(parsedDate.getTime())) {
+      return new Date(0); // Return epoch date for invalid dates
+    }
+
+    return parsedDate;
+  };
+
+  // ✅ Helper function to format date safely
+  const formatDate = (dateString: string | undefined): string => {
+    if (!dateString) {
+      return '-';
+    }
+
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return '-';
+      }
+      return date.toLocaleDateString('id-ID');
+    } catch (error) {
+      return '-';
+    }
+  };
+
   const getFilteredTeachers = () => {
     let filtered = [...teachers];
 
@@ -77,20 +110,21 @@ export function ExportModal({ isOpen, onClose, teachers }: ExportModalProps) {
 
       switch (options.sortBy) {
         case 'name':
-          aValue = a.name;
-          bValue = b.name;
+          aValue = a.name || '';
+          bValue = b.name || '';
           break;
         case 'nip':
-          aValue = a.nip;
-          bValue = b.nip;
+          aValue = a.nip || '';
+          bValue = b.nip || '';
           break;
         case 'subject':
-          aValue = a.subject;
-          bValue = b.subject;
+          aValue = a.subject || '';
+          bValue = b.subject || '';
           break;
         case 'joinDate':
-          aValue = new Date(a.joinDate);
-          bValue = new Date(b.joinDate);
+          // ✅ Use safe date parsing
+          aValue = safeParseDate(a.joinDate);
+          bValue = safeParseDate(b.joinDate);
           break;
         default:
           return 0;
@@ -145,7 +179,8 @@ export function ExportModal({ isOpen, onClose, teachers }: ExportModalProps) {
             row[field.label] = teacher.status === 'active' ? 'Aktif' : 'Tidak Aktif';
             break;
           case 'joinDate':
-            row[field.label] = new Date(teacher.joinDate).toLocaleDateString('id-ID');
+            // ✅ Use safe date formatting
+            row[field.label] = formatDate(teacher.joinDate);
             break;
           default:
             row[field.label] = teacher[field.key as keyof Teacher] || '-';
@@ -243,12 +278,12 @@ export function ExportModal({ isOpen, onClose, teachers }: ExportModalProps) {
       icon: FileText,
       description: 'Format universal, kompatibel dengan semua aplikasi'
     },
-    {
-      value: 'pdf',
-      label: 'PDF (.pdf)',
-      icon: FileImage,
-      description: 'Format untuk dokumen dan laporan resmi'
-    }
+    // {
+    //   value: 'pdf',
+    //   label: 'PDF (.pdf)',
+    //   icon: FileImage,
+    //   description: 'Format untuk dokumen dan laporan resmi'
+    // }
   ];
 
   const filteredTeachers = getFilteredTeachers();
@@ -473,7 +508,7 @@ export function ExportModal({ isOpen, onClose, teachers }: ExportModalProps) {
                               {field.key === 'status' 
                                 ? (teacher.status === 'active' ? 'Aktif' : 'Tidak Aktif')
                                 : field.key === 'joinDate'
-                                ? new Date(teacher.joinDate).toLocaleDateString('id-ID')
+                                ? formatDate(teacher.joinDate) // ✅ Use safe formatting
                                 : teacher[field.key as keyof Teacher] || '-'
                               }
                             </td>

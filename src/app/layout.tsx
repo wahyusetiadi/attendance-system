@@ -1,5 +1,7 @@
+import { AuthProvider } from '@/contexts/AuthContext';
 import './globals.css';
 import { Inter } from 'next/font/google';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -14,9 +16,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id">
-      <body className={inter.className}>
-        {children}
+    <html lang="en">
+      <body>
+        <AuthProvider>
+          <AuthGuard>
+            {children}
+          </AuthGuard>
+        </AuthProvider>
       </body>
     </html>
   );
