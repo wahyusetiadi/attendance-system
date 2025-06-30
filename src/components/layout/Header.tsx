@@ -26,7 +26,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           {/* ✅ Page Title */}
           <div>
             <h1 className="text-lg sm:text-xl font-semibold text-gray-900">
-              E-Presensi Dashboard
+              PAUD KANZUL KHAIRAT
             </h1>
             <p className="text-sm text-gray-500 hidden sm:block">
               Sistem Manajemen Kehadiran

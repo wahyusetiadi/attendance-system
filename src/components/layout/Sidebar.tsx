@@ -15,6 +15,8 @@ import {
   X
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import Image from 'next/image';
+import Logo from '../../../public/TK.png'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
@@ -113,7 +115,8 @@ function SidebarContent({
       <div className="flex items-center justify-between h-16 bg-blue-600 shadow-lg px-4">
         <div className="flex items-center space-x-3">
           <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-            <GraduationCap className="h-6 w-6 text-white" />
+            {/* <GraduationCap className="h-6 w-6 text-white" /> */}
+            <Image width={40} height={40} alt='' src={Logo} />
           </div>
           <div>
             <h1 className="text-lg font-bold text-white">

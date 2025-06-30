@@ -4,6 +4,8 @@ import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { useAuth } from '@/contexts/AuthContext';
+import Logo from '../../../public/TK.png'
+import Image from 'next/image';
 
 export default function LoginPage() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -36,16 +38,20 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-xl p-8">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="mx-auto rounded-full flex items-center justify-center mb-4">
+              {/* <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
+              </svg> */}
+              <Image src={Logo} width={75} height={75} alt={''} />
             </div>
             <h2 className="text-3xl font-bold text-gray-900">
-              Welcome Back
+              SELAMAT DATANG
             </h2>
+            <p className="mt-2 text-lg font-medium text-gray-900">
+              PAUD KANZUL KHAIRAT
+            </p>
             <p className="mt-2 text-sm text-gray-600">
-              Sign in to your account to continue
+              Silahkan Login Untuk Melanjutkan
             </p>
           </div>
 
@@ -55,7 +61,7 @@ export default function LoginPage() {
           {/* Footer */}
           <div className="mt-6 text-center">
             <p className="text-xs text-gray-500">
-              E-Presensi System © 2024
+              Instrumeta E-Presensi System © 2025
             </p>
           </div>
         </div>

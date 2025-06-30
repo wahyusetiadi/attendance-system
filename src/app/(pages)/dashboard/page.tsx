@@ -93,7 +93,7 @@ export default function DashboardPage() {
     error: null
   });
 
-  // Function to normalize backend data to frontend format (same as attendance page)
+  // Function to normalize backend data to frontend format
   const normalizeAttendanceRecord = (record: any): AttendanceRecord => {
     const normalizeStatus = (status: string): AttendanceRecord["status"] => {
       switch (status?.toUpperCase()) {
@@ -113,35 +113,23 @@ export default function DashboardPage() {
       }
     };
 
-    // Extract time from ISO string (HH:MM format)
-const extractTime = (isoString: string | null): string | null => {
-  if (!isoString) return null;
+    // Format timestamp to HH:MM (if timestamp exists)
+    const formatTimestamp = (timestamp: number | null): string | null => {
+      if (!timestamp) return null;
 
-  // Jika sudah berupa time string tanpa timezone
-  if (/^\d{2}:\d{2}(:\d{2})?$/.test(isoString)) {
-    return isoString.substring(0, 5);
-  }
+      const date = new Date(timestamp);
+      return date.toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    };
 
-  // Untuk ISO string (2025-06-30T09:21:00.000Z), ekstrak bagian waktu saja
-  // tanpa konversi timezone
-  if (isoString.includes('T')) {
-    const timePart = isoString.split('T')[1]; // Ambil bagian setelah 'T'
-    if (timePart) {
-      const timeOnly = timePart.split('.')[0]; // Hilangkan milliseconds dan Z
-      return timeOnly.substring(0, 5); // Return HH:MM saja
-    }
-  }
-
-  return null;
-};
-
-
-    const formatDate = (isoString: string): string => {
-      return new Date(isoString).toISOString().split("T")[0];
+    const formatDate = (dateString: string): string => {
+      return new Date(dateString).toISOString().split("T")[0];
     };
 
     return {
-      // checkIn: !!record.checkIn,
       id: record.id || undefined,
       teacherId: record.teacherId,
       teacherName: record.teacher?.name || null,
@@ -155,8 +143,8 @@ const extractTime = (isoString: string | null): string | null => {
           }
         : undefined,
       date: formatDate(record.date),
-      checkIn: extractTime(record.checkIn),
-      checkOut: extractTime(record.checkOut),
+      checkIn: formatTimestamp(record.checkIn),
+      checkOut: formatTimestamp(record.checkOut),
       workingHours: record.workingHours || null,
       status: normalizeStatus(record.status),
       location: record.location,
@@ -229,17 +217,6 @@ const extractTime = (isoString: string | null): string | null => {
         // Calculate attendance rate (present + late) / total teachers
         const totalPresent = todayPresent + todayLate;
         attendanceRate = totalTeachers > 0 ? Math.round((totalPresent / totalTeachers) * 100) : 0;
-
-        // console.log('Dashboard Stats Debug:', {
-        //   totalTeachers,
-        //   normalizedRecords: normalizedRecords.length,
-        //   todayPresent,
-        //   todayLate,
-        //   todayAbsent,
-        //   notCheckedIn,
-        //   attendanceRate,
-        //   attendanceMap: Array.from(attendanceMap.entries())
-        // });
       }
 
       setStats({

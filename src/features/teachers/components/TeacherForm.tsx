@@ -140,7 +140,7 @@ export function TeacherForm({ teacher, onSave, onCancel, isLoading = false }: Te
           />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
+            {/* <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">
                 Mata Pelajaran
               </label>
@@ -172,7 +172,7 @@ export function TeacherForm({ teacher, onSave, onCancel, isLoading = false }: Te
               {errors.subject && (
                 <p className="mt-1 text-sm text-red-600">{errors.subject}</p>
               )}
-            </div>
+            </div> */}
 
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">

@@ -80,8 +80,8 @@ export default function AttendancePage() {
 
     // Calculate working hours if both checkIn and checkOut exist
     const calculateWorkingHours = (
-      checkIn: string | null,
-      checkOut: string | null
+      checkIn: number | null,
+      checkOut: number | null
     ): number | null => {
       if (!checkIn || !checkOut) return null;
 
@@ -93,29 +93,17 @@ export default function AttendancePage() {
       return Math.round(diffHours * 100) / 100; // Round to 2 decimal places
     };
 
-    // Extract time from ISO string (HH:MM format)
-    // Extract time from ISO string (HH:MM format)
-const extractTime = (isoString: string | null): string | null => {
-  if (!isoString) return null;
+    // Format timestamp to HH:MM (if timestamp exists)
+    const formatTimestamp = (timestamp: number | null): string | null => {
+      if (!timestamp) return null;
 
-  // Jika sudah berupa time string tanpa timezone
-  if (/^\d{2}:\d{2}(:\d{2})?$/.test(isoString)) {
-    return isoString.substring(0, 5);
-  }
-
-  // Untuk ISO string (2025-06-30T09:21:00.000Z), ekstrak bagian waktu saja
-  // tanpa konversi timezone
-  if (isoString.includes('T')) {
-    const timePart = isoString.split('T')[1]; // Ambil bagian setelah 'T'
-    if (timePart) {
-      const timeOnly = timePart.split('.')[0]; // Hilangkan milliseconds dan Z
-      return timeOnly.substring(0, 5); // Return HH:MM saja
-    }
-  }
-
-  return null;
-};
-
+      const date = new Date(timestamp);
+      return date.toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    };
 
     // Format date to YYYY-MM-DD
     const formatDate = (isoString: string): string => {
@@ -123,7 +111,6 @@ const extractTime = (isoString: string | null): string | null => {
     };
 
     return {
-      // checkIn: !!record.checkIn, // ✅ ADD MISSING FIELD - Convert to boolean
       id: record.id || undefined,
       teacherId: record.teacherId,
       teacherName: record.teacher?.name || null,
@@ -137,8 +124,8 @@ const extractTime = (isoString: string | null): string | null => {
           }
         : undefined,
       date: formatDate(record.date),
-      checkIn: extractTime(record.checkIn),
-      checkOut: extractTime(record.checkOut),
+      checkIn: formatTimestamp(record.checkIn),
+      checkOut: formatTimestamp(record.checkOut),
       workingHours: calculateWorkingHours(record.checkIn, record.checkOut),
       status: normalizeStatus(record.status),
       location: record.location,
@@ -153,7 +140,7 @@ const extractTime = (isoString: string | null): string | null => {
     normalizeAttendanceRecord
   );
 
-  // ✅ NEW: Function to get filtered attendance data with teacher completion
+  // Function to get filtered attendance data with teacher completion
   const getFilteredAttendanceData = (): AttendanceRecord[] => {
     // Check if filter is for a single day (start and end date are the same)
     const isSingleDay = filter.startDate === filter.endDate;
@@ -192,9 +179,8 @@ const extractTime = (isoString: string | null): string | null => {
               },
             };
           } else {
-            // ✅ FIX: Create "not recorded" entry for teachers without attendance
+            // Create "not recorded" entry for teachers without attendance
             return {
-              // checkIn: false, // ✅ ADD MISSING FIELD
               id: undefined,
               teacherId: teacherId,
               teacherName: teacher.name,
@@ -209,7 +195,7 @@ const extractTime = (isoString: string | null): string | null => {
               checkIn: null,
               checkOut: null,
               workingHours: null,
-              status: "TIDAK HADIR" as AttendanceRecord["status"], // ✅ FIX: Use valid status
+              status: "TIDAK HADIR" as AttendanceRecord["status"],
               location: null,
               notes: "Belum melakukan absensi",
               createdAt: undefined,
@@ -224,11 +210,8 @@ const extractTime = (isoString: string | null): string | null => {
   };
 
   const displayData = getFilteredAttendanceData();
-  // console.log('Filter:', filter);
-  // console.log('Normalized Records:', normalizedAttendanceRecords);
-  // console.log('Display Data:', displayData);
 
-  // ✅ UPDATE: Get stats based on display data
+  // Get stats based on display data
   const getStatsFromData = (data: AttendanceRecord[]) => {
     const isSingleDay = filter.startDate === filter.endDate;
 
@@ -250,7 +233,7 @@ const extractTime = (isoString: string | null): string | null => {
         total: data.length,
         present: data.filter((r) => r.status === "HADIR" || r.status === "TERLAMBAT").length,
         absent: data.filter((r) => 
-          r.status === "TIDAK HADIR" || r.status === "SAKIT" || r.status === "IZIN" // ✅ FIX: was "HADIR"
+          r.status === "TIDAK HADIR" || r.status === "SAKIT" || r.status === "IZIN"
         ).length,
         notRecorded: 0, // No "not recorded" in date range view
         attendanceRate: data.length > 0 ? 
@@ -327,61 +310,6 @@ const extractTime = (isoString: string | null): string | null => {
         </div>
       )}
 
-      {/* Quick Stats */}
-      {/* <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">
-                {filter.startDate === filter.endDate ? 'Total Guru' : 'Total Records'}
-              </p>
-              <p className="text-2xl font-bold text-blue-600">
-                {statsData.total}
-              </p>
-            </div>
-            <Users className="h-8 w-8 text-blue-500" />
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Hadir</p>
-              <p className="text-2xl font-bold text-green-600">
-                {statsData.present}
-              </p>
-            </div>
-            <Calendar className="h-8 w-8 text-green-500" />
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">
-                {filter.startDate === filter.endDate ? 'Belum Absen' : 'Tidak Hadir'}
-              </p>
-              <p className="text-2xl font-bold text-orange-600">
-                {filter.startDate === filter.endDate ? statsData.notRecorded : statsData.absent}
-              </p>
-            </div>
-            <Clock className="h-8 w-8 text-orange-500" />
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Tingkat Kehadiran</p>
-              <p className="text-2xl font-bold text-purple-600">
-                {statsData.attendanceRate.toFixed(1)}%
-              </p>
-            </div>
-            <BarChart3 className="h-8 w-8 text-purple-500" />
-          </div>
-        </div>
-      </div> */}
-
       {/* Filters */}
       <AttendanceFilters
         filter={filter}
@@ -398,7 +326,7 @@ const extractTime = (isoString: string | null): string | null => {
         />
       )}
 
-      {/* ✅ FIXED: Use displayData instead of combinedData */}
+      {/* Attendance Table */}
       <AttendanceTable
         data={displayData}
         onRefresh={refresh}

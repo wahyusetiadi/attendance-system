@@ -107,35 +107,23 @@ export function AttendancePieChart() {
       }
     };
 
-    // Extract time from ISO string (HH:MM format)
-const extractTime = (isoString: string | null): string | null => {
-  if (!isoString) return null;
+    // Format timestamp to HH:MM (if timestamp exists)
+    const formatTimestamp = (timestamp: number | null): string | null => {
+      if (!timestamp) return null;
 
-  // Jika sudah berupa time string tanpa timezone
-  if (/^\d{2}:\d{2}(:\d{2})?$/.test(isoString)) {
-    return isoString.substring(0, 5);
-  }
-
-  // Untuk ISO string (2025-06-30T09:21:00.000Z), ekstrak bagian waktu saja
-  // tanpa konversi timezone
-  if (isoString.includes('T')) {
-    const timePart = isoString.split('T')[1]; // Ambil bagian setelah 'T'
-    if (timePart) {
-      const timeOnly = timePart.split('.')[0]; // Hilangkan milliseconds dan Z
-      return timeOnly.substring(0, 5); // Return HH:MM saja
-    }
-  }
-
-  return null;
-};
-
+      const date = new Date(timestamp);
+      return date.toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    };
 
     const formatDate = (isoString: string): string => {
       return new Date(isoString).toISOString().split("T")[0];
     };
 
     return {
-      // checkIn: !!record.checkIn,
       id: record.id || undefined,
       teacherId: record.teacherId,
       teacherName: record.teacher?.name || null,
@@ -149,8 +137,8 @@ const extractTime = (isoString: string | null): string | null => {
           }
         : undefined,
       date: formatDate(record.date),
-      checkIn: extractTime(record.checkIn),
-      checkOut: extractTime(record.checkOut),
+      checkIn: formatTimestamp(record.checkIn),
+      checkOut: formatTimestamp(record.checkOut),
       workingHours: record.workingHours || null,
       status: normalizeStatus(record.status),
       location: record.location,
@@ -175,22 +163,15 @@ const extractTime = (isoString: string | null): string | null => {
       }
 
       // Normalize attendance records
-      const normalizedRecords = (attendanceResponse.data || []).map(normalizeAttendanceRecord);            
-      // console.log('normalizedRecords:', normalizedRecords.filter(record => record.date));
-      
+      const normalizedRecords = (attendanceResponse.data || []).map(normalizeAttendanceRecord);
 
       // Initialize daily breakdown
       const dailyBreakdown: DailyAttendance[] = dates.map((date, index) => {
         const dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
         const dateStr = date.toISOString().split('T')[0];
 
-        console.log('dateStr', dateStr);
-        
-
         // Filter records for this specific date
         const dayRecords = normalizedRecords.filter(record => record.date === dateStr);
-        // console.log('dayRecords:', dayRecords);
-        
 
         const present = dayRecords.filter(record => record.status === 'HADIR').length;
         const late = dayRecords.filter(record => record.status === 'TERLAMBAT').length;
@@ -224,18 +205,6 @@ const extractTime = (isoString: string | null): string | null => {
         dailyBreakdown,
         loading: false,
         error: null
-      });
-
-      console.log('Weekly Attendance Debug:', {
-        startDate,
-        endDate,
-        totalRecords: normalizedRecords.length,
-        totalPresent,
-        totalLate,
-        totalAbsent,
-        totalAll,
-        dailyBreakdown,
-        records: normalizedRecords
       });
 
     } catch (error) {
@@ -441,115 +410,6 @@ const extractTime = (isoString: string | null): string | null => {
               );
             })}
           </div>
-
-          {/* Collapsible Daily Breakdown */}
-          
-          {/* <div className="border border-gray-200 rounded-lg">
-            <button
-              onClick={() => setIsDailyBreakdownOpen(!isDailyBreakdownOpen)}
-              className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 transition-colors rounded-lg"
-            >
-              <div className="flex items-center space-x-2">
-                <Calendar className="h-4 w-4 text-gray-500" />
-                <span className="font-semibold text-gray-900">Breakdown Harian</span>
-                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                  {weeklyStats.dailyBreakdown.length} hari
-                </span>
-              </div>
-              {isDailyBreakdownOpen ? (
-                <ChevronUp className="h-4 w-4 text-gray-500" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-gray-500" />
-              )}
-            </button>
-
-            {isDailyBreakdownOpen && (
-              <div className="px-4 pb-4 border-t border-gray-100">
-                <div className="grid grid-cols-3 md:grid-cols-7 gap-3 mt-4">
-                  {weeklyStats.dailyBreakdown.map((day) => {
-                    const dayAttendanceRate = day.total > 0 
-                      ? ((day.present + day.late) / day.total * 100).toFixed(0)
-                      : '0';
-
-                    return (
-                      <div key={day.date} className="group hover:scale-105 transition-transform duration-200">
-                        <div className="text-center p-3 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border border-gray-200 hover:shadow-md transition-all">
-                          <div className="text-xs font-medium text-gray-600 mb-2">{day.day}</div>
-                          <div className="text-lg font-bold text-gray-900 mb-1">{dayAttendanceRate}%</div>
-                          <div className="text-xs text-gray-500 mb-2">{day.present + day.late}/{day.total}</div>
-
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-gradient-to-r from-green-400 to-green-500 h-2 rounded-full transition-all duration-300"
-                              style={{ width: `${dayAttendanceRate}%` }}
-                            ></div>
-                          </div>
-
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 mt-2">
-                            <div className="text-xs space-y-1">
-                              {day.present > 0 && (
-                                <div className="flex justify-between">
-                                  <span className="text-green-600">Hadir:</span>
-                                  <span className="font-medium">{day.present}</span>
-                                </div>
-                              )}
-                              {day.late > 0 && (
-                                <div className="flex justify-between">
-                                  <span className="text-yellow-600">Terlambat:</span>
-                                  <span className="font-medium">{day.late}</span>
-                                </div>
-                              )}
-                              {day.absent > 0 && (
-                                <div className="flex justify-between">
-                                  <span className="text-red-600">Tidak hadir:</span>
-                                  <span className="font-medium">{day.absent}</span>
-                                </div>
-                              )}
-                              {day.total === 0 && (
-                                <div className="text-gray-500">Tidak ada data</div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>  */}
-          
-
-          {/* Weekly Summary Stats */}
-          {/* <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center">
-                <div className="text-sm text-gray-600">Rata-rata Harian</div>
-                <div className="text-xl font-bold text-blue-600">
-                  {weeklyStats.dailyBreakdown.length > 0 
-                    ? ((weeklyStats.totalPresent + weeklyStats.totalLate) / weeklyStats.dailyBreakdown.length).toFixed(1)
-                    : '0.0'
-                  }
-                </div>
-                <div className="text-xs text-gray-500">record hadir</div>
-              </div>
-              <div className="text-center">
-                <div className="text-sm text-gray-600">Hari Terbaik</div>
-                <div className="text-xl font-bold text-green-600">
-                  {(() => {
-                    const bestDay = weeklyStats.dailyBreakdown.reduce((best, current) => 
-                      (current.present + current.late) > (best.present + best.late) ? current : best,
-                      weeklyStats.dailyBreakdown[0]
-                    );
-                    return bestDay?.day || '-';
-                  })()}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {Math.max(...weeklyStats.dailyBreakdown.map(d => d.present + d.late))} hadir
-                </div>
-              </div>
-            </div>
-          </div> */}
         </>
       )}
 

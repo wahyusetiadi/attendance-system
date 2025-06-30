@@ -39,9 +39,9 @@ export function ManualEntryModal({
     teacherName: '',
     teacherNip: '',
     date: new Date().toISOString().split('T')[0],
-    checkIn: '', // ← Use checkIn instead of clockIn
-    checkOut: '', // ← Use checkOut instead of clockOut
-    status: 'HADIR' as string, // ← Use backend status format
+    checkIn: '',
+    checkOut: '',
+    status: 'HADIR' as string,
     location: '',
     notes: ''
   });
@@ -60,9 +60,9 @@ export function ManualEntryModal({
         teacherName: '',
         teacherNip: '',
         date: new Date().toISOString().split('T')[0],
-        checkIn: '', // ← Use checkIn
-        checkOut: '', // ← Use checkOut
-        status: 'HADIR', // ← Default to backend format
+        checkIn: '',
+        checkOut: '',
+        status: 'HADIR',
         location: '',
         notes: ''
       });
@@ -126,63 +126,59 @@ export function ManualEntryModal({
     return Math.max(0, outTime - inTime);
   };
 
-  // Create full DateTime string for backend
-  const createDateTime = (date: string, time: string): string => {
-    if (!time) return '';
-    return `${date}T${time}:00.000Z`;
+  // ✅ FIXED: Create timestamp in Indonesia timezone
+  const createTimestamp = (date: string, time: string): number | null => {
+    if (!time) return null;
+
+    // Create date object in local timezone (Indonesia)
+    const dateTime = new Date(`${date}T${time}:00`);
+
+    // Return timestamp (milliseconds since epoch)
+    return dateTime.getTime();
   };
 
-const validateForm = (): boolean => {
-  const newErrors: Record<string, string> = {};
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
 
-  // Required fields
-  if (!formData.teacherId) {
-    newErrors.teacherId = 'Pilih guru terlebih dahulu';
-  }
-
-  if (!formData.date) {
-    newErrors.date = 'Tanggal harus diisi';
-  }
-
-  // Status-specific validations
-  if (formData.status === 'HADIR' || formData.status === 'TERLAMBAT') {
-    if (!formData.checkIn) {
-      newErrors.checkIn = 'Jam masuk harus diisi untuk status hadir/terlambat';
+    // Required fields
+    if (!formData.teacherId) {
+      newErrors.teacherId = 'Pilih guru terlebih dahulu';
     }
-  }
 
-  // Time validation
-  if (formData.checkIn && formData.checkOut) {
-    const workingHours = calculateWorkingHours(formData.checkIn, formData.checkOut);
-    if (workingHours !== null && workingHours < 0) {
-      newErrors.checkOut = 'Jam keluar tidak boleh lebih awal dari jam masuk';
+    if (!formData.date) {
+      newErrors.date = 'Tanggal harus diisi';
     }
-  }
 
-  // ✅ BETTER: Date validation using date comparison
-  if (formData.date) {
-    // Create dates using UTC to avoid timezone issues
-    const selectedDate = new Date(formData.date + 'T00:00:00Z');
-    const today = new Date();
-
-    // Set today to start of day in local timezone
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-    // Convert selected date to local timezone for comparison
-    const selectedLocalDate = new Date(selectedDate.getUTCFullYear(), selectedDate.getUTCMonth(), selectedDate.getUTCDate());
-
-    // console.log('Selected date (local):', selectedLocalDate.toDateString());
-    // console.log('Today (start of day):', todayStart.toDateString());
-
-    if (selectedLocalDate > todayStart) {
-      newErrors.date = 'Tidak dapat membuat absensi untuk tanggal masa depan';
+    // Status-specific validations
+    if (formData.status === 'HADIR' || formData.status === 'TERLAMBAT') {
+      if (!formData.checkIn) {
+        newErrors.checkIn = 'Jam masuk harus diisi untuk status hadir/terlambat';
+      }
     }
-  }
 
-  setErrors(newErrors);
-  return Object.keys(newErrors).length === 0;
-};
+    // Time validation
+    if (formData.checkIn && formData.checkOut) {
+      const workingHours = calculateWorkingHours(formData.checkIn, formData.checkOut);
+      if (workingHours !== null && workingHours < 0) {
+        newErrors.checkOut = 'Jam keluar tidak boleh lebih awal dari jam masuk';
+      }
+    }
 
+    // Date validation
+    if (formData.date) {
+      const selectedDate = new Date(formData.date + 'T00:00:00');
+      const today = new Date();
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const selectedLocalDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+
+      if (selectedLocalDate > todayStart) {
+        newErrors.date = 'Tidak dapat membuat absensi untuk tanggal masa depan';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSave = async () => {
     if (!validateForm()) return;
@@ -195,18 +191,26 @@ const validateForm = (): boolean => {
     setIsLoading(true);
 
     try {
-      // Create new record with backend format
+      // ✅ FIXED: Create new record with proper timestamp format
       const newRecord = {
         teacherId: formData.teacherId,
-        date: formData.date, // Send as date string, backend will convert
-        checkIn: formData.checkIn ? createDateTime(formData.date, formData.checkIn) : undefined,
-        checkOut: formData.checkOut ? createDateTime(formData.date, formData.checkOut) : undefined,
-        status: formData.status, // Backend status format
+        date: formData.date, // Keep as date string
+        checkIn: createTimestamp(formData.date, formData.checkIn), // Send as timestamp
+        checkOut: createTimestamp(formData.date, formData.checkOut), // Send as timestamp
+        status: formData.status,
         location: formData.location || undefined,
         notes: formData.notes || undefined,
       };
 
       console.log('Sending manual entry data:', newRecord);
+      console.log('Timestamps created:', {
+        checkInTime: formData.checkIn,
+        checkInTimestamp: newRecord.checkIn,
+        checkInDate: newRecord.checkIn ? new Date(newRecord.checkIn).toLocaleString('id-ID') : null,
+        checkOutTime: formData.checkOut,
+        checkOutTimestamp: newRecord.checkOut,
+        checkOutDate: newRecord.checkOut ? new Date(newRecord.checkOut).toLocaleString('id-ID') : null,
+      });
 
       await onSave(newRecord);
       onClose();
@@ -254,7 +258,7 @@ const validateForm = (): boolean => {
                     Tambah Absensi Manual
                   </h3>
                   <p className="text-sm text-gray-600">
-                    Input data absensi guru secara manual
+                    Input data absensi guru secara manual (Zona Waktu Indonesia)
                   </p>
                 </div>
               </div>
@@ -384,7 +388,7 @@ const validateForm = (): boolean => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     <Clock className="inline h-4 w-4 mr-1" />
-                    Jam Masuk
+                    Jam Masuk (WIB)
                   </label>
                   <input
                     type="time"
@@ -403,7 +407,7 @@ const validateForm = (): boolean => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     <Clock className="inline h-4 w-4 mr-1" />
-                    Jam Keluar
+                    Jam Keluar (WIB)
                   </label>
                   <input
                     type="time"
@@ -431,26 +435,6 @@ const validateForm = (): boolean => {
                   </div>
                 </div>
               )}
-
-              {/* Location */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <MapPin className="inline h-4 w-4 mr-1" />
-                  Lokasi
-                </label>
-                <select
-                  value={formData.location}
-                  onChange={(e) => handleInputChange('location', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Pilih Lokasi</option>
-                  {locationOptions.map((location) => (
-                    <option key={location} value={location}>
-                      {location}
-                    </option>
-                  ))}
-                </select>
-              </div>
 
               {/* Notes */}
               <div>

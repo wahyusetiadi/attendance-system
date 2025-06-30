@@ -35,7 +35,7 @@ const metrics: MetricConfig[] = [
   { 
     key: 'subjects', 
     label: 'Tidak Hadir', 
-    color: 'bg-red-500', // ✅ Change to red for better UX
+    color: 'bg-red-500',
     bgColor: 'bg-red-300' 
   },
 ];
@@ -102,35 +102,23 @@ export function MonthlyChart() {
       }
     };
 
-    // Extract time from ISO string (HH:MM format)
-const extractTime = (isoString: string | null): string | null => {
-  if (!isoString) return null;
+    // Format timestamp to HH:MM (if timestamp exists)
+    const formatTimestamp = (timestamp: number | null): string | null => {
+      if (!timestamp) return null;
 
-  // Jika sudah berupa time string tanpa timezone
-  if (/^\d{2}:\d{2}(:\d{2})?$/.test(isoString)) {
-    return isoString.substring(0, 5);
-  }
-
-  // Untuk ISO string (2025-06-30T09:21:00.000Z), ekstrak bagian waktu saja
-  // tanpa konversi timezone
-  if (isoString.includes('T')) {
-    const timePart = isoString.split('T')[1]; // Ambil bagian setelah 'T'
-    if (timePart) {
-      const timeOnly = timePart.split('.')[0]; // Hilangkan milliseconds dan Z
-      return timeOnly.substring(0, 5); // Return HH:MM saja
-    }
-  }
-
-  return null;
-};
-
+      const date = new Date(timestamp);
+      return date.toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    };
 
     const formatDate = (isoString: string): string => {
       return new Date(isoString).toISOString().split("T")[0];
     };
 
     return {
-      // checkIn: !!record.checkIn,
       id: record.id || undefined,
       teacherId: record.teacherId,
       teacherName: record.teacher?.name || null,
@@ -144,8 +132,8 @@ const extractTime = (isoString: string | null): string | null => {
           }
         : undefined,
       date: formatDate(record.date),
-      checkIn: extractTime(record.checkIn),
-      checkOut: extractTime(record.checkOut),
+      checkIn: formatTimestamp(record.checkIn),
+      checkOut: formatTimestamp(record.checkOut),
       workingHours: record.workingHours || null,
       status: normalizeStatus(record.status),
       location: record.location,
@@ -191,8 +179,7 @@ const extractTime = (isoString: string | null): string | null => {
             if (attendanceResponse.success && attendanceResponse.data) {
               const normalizedRecords = attendanceResponse.data.map(normalizeAttendanceRecord);
 
-              // ✅ FIXED: Calculate metrics correctly
-
+              // Calculate metrics correctly
               // 1. Present records = HADIR + TERLAMBAT (actually present)
               const presentRecords = normalizedRecords.filter(record => 
                 record.status === 'HADIR' || record.status === 'TERLAMBAT'
@@ -210,24 +197,15 @@ const extractTime = (isoString: string | null): string | null => {
                 ? Math.round((presentRecords.length / normalizedRecords.length) * 100)
                 : 0;
 
-              // 4. Count of absent people (untuk "Tidak Hadir" metric)
+              // 4. Count of absent people
               const absentCount = absentRecords.length;
 
               chartData.push({
                 month: defaultMonthsIndo[month],
                 teachers: totalTeachers,
                 attendance: attendancePercentage,
-                subjects: absentCount // ✅ Now correctly represents absent count
+                subjects: absentCount
               });
-
-              // ✅ DEBUG: Log untuk verifikasi
-              // console.log(`Month ${month + 1} (${defaultMonthsIndo[month]}):`, {
-              //   totalRecords: normalizedRecords.length,
-              //   presentCount: presentRecords.length,
-              //   absentCount: absentCount,
-              //   attendancePercentage,
-              //   records: normalizedRecords.map(r => ({ status: r.status, teacher: r.teacherName }))
-              // });
 
             } else {
               // No data for this month
@@ -443,7 +421,6 @@ const extractTime = (isoString: string | null): string | null => {
                     {metric.label}
                   </div>
                   <div className={`text-xs font-medium ${
-                    // ✅ For "Tidak Hadir", red when increasing (bad), green when decreasing (good)
                     metric.key === 'subjects' 
                       ? (change >= 0 ? 'text-red-600' : 'text-green-600')
                       : (change >= 0 ? 'text-green-600' : 'text-red-600')
