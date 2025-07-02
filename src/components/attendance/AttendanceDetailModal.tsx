@@ -156,7 +156,7 @@ export function AttendanceDetailModal({ isOpen, onClose, record }: AttendanceDet
                   <Clock className="h-5 w-5 text-gray-400" />
                   <div>
                     <p className="text-sm text-gray-600">Jam Masuk</p>
-                    <p className="font-medium font-mono">{formatTime(record.clockIn)}</p>
+                    <p className="font-medium font-mono">{formatTime(record.checkIn)}</p>
                   </div>
                 </div>
 
@@ -164,7 +164,7 @@ export function AttendanceDetailModal({ isOpen, onClose, record }: AttendanceDet
                   <Clock className="h-5 w-5 text-gray-400" />
                   <div>
                     <p className="text-sm text-gray-600">Jam Keluar</p>
-                    <p className="font-medium font-mono">{formatTime(record.clockOut)}</p>
+                    <p className="font-medium font-mono">{formatTime(record.checkOut)}</p>
                   </div>
                 </div>
 

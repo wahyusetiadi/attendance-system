@@ -3,13 +3,13 @@
 import { useState, useEffect } from 'react';
 import { 
   Users, 
-  BookOpen,
+  // BookOpen,
   TrendingUp,
-  Calendar,
+  // Calendar,
   AlertCircle,
   CheckCircle,
-  BarChart3,
-  UserCheck,
+  // BarChart3,
+  // UserCheck,
   ClockArrowUp,
   ClockAlert,
   ClockArrowDown
@@ -46,40 +46,40 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 'sm' }) => {
   );
 };
 
-const recentActivities = [
-  {
-    id: 1,
-    type: 'add',
-    message: 'Guru baru ditambahkan: Budi Santoso',
-    time: '2 jam yang lalu',
-    icon: CheckCircle,
-    color: 'text-green-500'
-  },
-  {
-    id: 2,
-    type: 'update',
-    message: 'Data guru diperbarui: Siti Rahayu',
-    time: '5 jam yang lalu',
-    icon: AlertCircle,
-    color: 'text-blue-500'
-  },
-  {
-    id: 3,
-    type: 'add',
-    message: 'Mata pelajaran baru: Fisika Lanjutan',
-    time: '1 hari yang lalu',
-    icon: CheckCircle,
-    color: 'text-green-500'
-  },
-  {
-    id: 4,
-    type: 'attendance',
-    message: 'Kehadiran guru hari ini: 94%',
-    time: '2 hari yang lalu',
-    icon: AlertCircle,
-    color: 'text-orange-500'
-  },
-];
+// const recentActivities = [
+//   {
+//     id: 1,
+//     type: 'add',
+//     message: 'Guru baru ditambahkan: Budi Santoso',
+//     time: '2 jam yang lalu',
+//     icon: CheckCircle,
+//     color: 'text-green-500'
+//   },
+//   {
+//     id: 2,
+//     type: 'update',
+//     message: 'Data guru diperbarui: Siti Rahayu',
+//     time: '5 jam yang lalu',
+//     icon: AlertCircle,
+//     color: 'text-blue-500'
+//   },
+//   {
+//     id: 3,
+//     type: 'add',
+//     message: 'Mata pelajaran baru: Fisika Lanjutan',
+//     time: '1 hari yang lalu',
+//     icon: CheckCircle,
+//     color: 'text-green-500'
+//   },
+//   {
+//     id: 4,
+//     type: 'attendance',
+//     message: 'Kehadiran guru hari ini: 94%',
+//     time: '2 hari yang lalu',
+//     icon: AlertCircle,
+//     color: 'text-orange-500'
+//   },
+// ];
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({

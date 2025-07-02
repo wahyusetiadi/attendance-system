@@ -111,16 +111,16 @@ export function CheckInOutCard({ teacherId, teacherName, onStatusChange }: Check
         <div className="mb-6 p-4 bg-gray-50 rounded-lg">
           <h4 className="font-medium text-gray-900 mb-2">Status Hari Ini</h4>
           <div className="space-y-2 text-sm">
-            {status.todayAttendance.clockIn && (
+            {status.todayAttendance.checkIn && (
               <div className="flex items-center">
                 <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                <span>Check In: {status.todayAttendance.clockIn}</span>
+                <span>Check In: {status.todayAttendance.checkIn}</span>
               </div>
             )}
-            {status.todayAttendance.clockOut && (
+            {status.todayAttendance.checkOut && (
               <div className="flex items-center">
                 <XCircle className="h-4 w-4 text-red-500 mr-2" />
-                <span>Check Out: {status.todayAttendance.clockOut}</span>
+                <span>Check Out: {status.todayAttendance.checkOut}</span>
               </div>
             )}
             {status.todayAttendance.workingHours && (

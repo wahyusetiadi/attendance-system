@@ -54,7 +54,7 @@ const quickStats = [
 
 export default function ReportsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState('this-month');
-  const [selectedReport, setSelectedReport] = useState('');
+  // const [selectedReport, setSelectedReport] = useState('');
 
   return (
     <div className="space-y-6">

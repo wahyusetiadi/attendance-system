@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   AttendanceFilter,
-  AttendanceSummary,
+  // AttendanceSummary,
   AttendanceRecord,
 } from "@/types/attendance";
 import { AttendanceTable } from "@/components/attendance/AttendanceTable";
@@ -18,10 +18,10 @@ import {
   Download,
   Plus,
   RefreshCw,
-  Calendar,
-  Clock,
-  Users,
-  BarChart3,
+  // Calendar,
+  // Clock,
+  // Users,
+  // BarChart3,
   AlertCircle,
 } from "lucide-react";
 
@@ -53,9 +53,17 @@ export default function AttendancePage() {
 
   const [filter, setFilter] = useState<AttendanceFilter>(defaultFilter);
 
-  useEffect(() => {
+  // useEffect(() => {
+  //   fetchAttendance(filter);
+  // }, [filter]);
+
+  const memoizedFetchAttendance = useCallback(() => {
     fetchAttendance(filter);
-  }, [filter]);
+  }, [fetchAttendance, filter]);
+
+  useEffect(() => {
+    memoizedFetchAttendance();
+  }, [memoizedFetchAttendance]);
 
   // Function to normalize backend data to frontend format
   const normalizeAttendanceRecord = (record: any): AttendanceRecord => {
@@ -98,10 +106,10 @@ export default function AttendancePage() {
       if (!timestamp) return null;
 
       const date = new Date(timestamp);
-      return date.toLocaleTimeString('id-ID', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
+      return date.toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
       });
     };
 
@@ -219,25 +227,48 @@ export default function AttendancePage() {
       // For single day, calculate based on all teachers
       return {
         total: data.length,
-        present: data.filter((r) => r.status === "HADIR" || r.status === "TERLAMBAT").length,
-        absent: data.filter((r) => 
-          r.status === "TIDAK HADIR" || r.status === "SAKIT" || r.status === "IZIN"
+        present: data.filter(
+          (r) => r.status === "HADIR" || r.status === "TERLAMBAT"
         ).length,
-        notRecorded: data.filter((r) => r.notes === "Belum melakukan absensi").length,
-        attendanceRate: data.length > 0 ? 
-          (data.filter((r) => r.status === "HADIR" || r.status === "TERLAMBAT").length / data.length) * 100 : 0,
+        absent: data.filter(
+          (r) =>
+            r.status === "TIDAK HADIR" ||
+            r.status === "SAKIT" ||
+            r.status === "IZIN"
+        ).length,
+        notRecorded: data.filter((r) => r.notes === "Belum melakukan absensi")
+          .length,
+        attendanceRate:
+          data.length > 0
+            ? (data.filter(
+                (r) => r.status === "HADIR" || r.status === "TERLAMBAT"
+              ).length /
+                data.length) *
+              100
+            : 0,
       };
     } else {
       // For date range, calculate based on actual records
       return {
         total: data.length,
-        present: data.filter((r) => r.status === "HADIR" || r.status === "TERLAMBAT").length,
-        absent: data.filter((r) => 
-          r.status === "TIDAK HADIR" || r.status === "SAKIT" || r.status === "IZIN"
+        present: data.filter(
+          (r) => r.status === "HADIR" || r.status === "TERLAMBAT"
+        ).length,
+        absent: data.filter(
+          (r) =>
+            r.status === "TIDAK HADIR" ||
+            r.status === "SAKIT" ||
+            r.status === "IZIN"
         ).length,
         notRecorded: 0, // No "not recorded" in date range view
-        attendanceRate: data.length > 0 ? 
-          (data.filter((r) => r.status === "HADIR" || r.status === "TERLAMBAT").length / data.length) * 100 : 0,
+        attendanceRate:
+          data.length > 0
+            ? (data.filter(
+                (r) => r.status === "HADIR" || r.status === "TERLAMBAT"
+              ).length /
+                data.length) *
+              100
+            : 0,
       };
     }
   };
@@ -245,7 +276,7 @@ export default function AttendancePage() {
   const statsData = getStatsFromData(displayData);
 
   const handleFilterChange = (newFilter: AttendanceFilter) => {
-    console.log('Filter changed:', newFilter);
+    console.log("Filter changed:", newFilter);
     setFilter(newFilter);
   };
 
@@ -339,11 +370,11 @@ export default function AttendancePage() {
       {pagination && (
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <p className="text-sm text-gray-600 text-center">
-            Showing {displayData.length} {filter.startDate === filter.endDate ? 'teachers' : 'records'}
-            {filter.startDate === filter.endDate 
-              ? ` (${filter.startDate})` 
-              : ` (${filter.startDate} - ${filter.endDate})`
-            }
+            Showing {displayData.length}{" "}
+            {filter.startDate === filter.endDate ? "teachers" : "records"}
+            {filter.startDate === filter.endDate
+              ? ` (${filter.startDate})`
+              : ` (${filter.startDate} - ${filter.endDate})`}
           </p>
         </div>
       )}

@@ -78,8 +78,8 @@ export function ExportModal({ isOpen, onClose, data, filter }: ExportModalProps)
       'Nama Guru': record.teacherName,
       'NIP': record.teacherNip,
       'Tanggal': new Date(record.date).toLocaleDateString('id-ID'),
-      'Jam Masuk': record.clockIn || '-',
-      'Jam Keluar': record.clockOut || '-',
+      'Jam Masuk': record.checkIn || '-',
+      'Jam Keluar': record.checkOut || '-',
       'Jam Kerja': record.workingHours ? `${record.workingHours.toFixed(2)} jam` : '-',
       'Status': getStatusLabel(record.status),
       'Lokasi': record.location || '-',
@@ -87,16 +87,17 @@ export function ExportModal({ isOpen, onClose, data, filter }: ExportModalProps)
     }));
   };
 
-  const getStatusLabel = (status: AttendanceRecord['status']) => {
-    const labels = {
-      present: 'Hadir',
-      late: 'Terlambat',
-      absent: 'Tidak Hadir',
-      sick: 'Sakit',
-      permission: 'Izin'
-    };
-    return labels[status] || status;
+const getStatusLabel = (status: AttendanceRecord['status']) => {
+  const labels: Record<AttendanceRecord['status'], string> = {
+    HADIR: 'HADIR',
+    TERLAMBAT: 'TERLAMBAT',
+    'TIDAK HADIR': 'TIDAK HADIR',
+    SAKIT: 'SAKIT',
+    IZIN: 'IZIN'
   };
+  return labels[status] || status;
+};
+
 
   const downloadAsCSV = (data: any[], fileName: string) => {
     const headers = Object.keys(data[0]);

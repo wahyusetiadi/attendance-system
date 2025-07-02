@@ -11,12 +11,12 @@ import { Button } from '@/components/ui/Button';
 import { 
   Plus, 
   Download, 
-  Upload,
+  // Upload,
   RefreshCw,
   Users,
   UserCheck,
   UserX,
-  BookOpen,
+  // BookOpen,
   AlertCircle
 } from 'lucide-react';
 
@@ -31,7 +31,7 @@ export default function TeachersPage() {
     deleteTeacher,
     toggleTeacherStatus,
     refresh,
-    fetchTeachers
+    // fetchTeachers
   } = useTeachers();
 
   const [isFormOpen, setIsFormOpen] = useState(false);
