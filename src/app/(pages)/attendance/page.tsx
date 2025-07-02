@@ -53,17 +53,11 @@ export default function AttendancePage() {
 
   const [filter, setFilter] = useState<AttendanceFilter>(defaultFilter);
 
-  // useEffect(() => {
-  //   fetchAttendance(filter);
-  // }, [filter]);
-
-  const memoizedFetchAttendance = useCallback(() => {
-    fetchAttendance(filter);
-  }, [fetchAttendance, filter]);
-
   useEffect(() => {
-    memoizedFetchAttendance();
-  }, [memoizedFetchAttendance]);
+    fetchAttendance(filter);
+  }, [filter]);
+
+;
 
   // Function to normalize backend data to frontend format
   const normalizeAttendanceRecord = (record: any): AttendanceRecord => {
