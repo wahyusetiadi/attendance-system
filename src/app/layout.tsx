@@ -6,7 +6,7 @@ import { AuthGuard } from '@/components/auth/AuthGuard';
 // const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'EduAdmin - Sistem Manajemen Guru',
+  title: 'Presensi PAUD Kanzul Khairat',
   description: 'Aplikasi manajemen guru untuk sekolah modern',
 };
 

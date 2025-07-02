@@ -141,10 +141,10 @@ export default function TeachersPage() {
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
-          <Button onClick={handleAdd} disabled={isLoading}>
+          {/* <Button onClick={handleAdd} disabled={isLoading}>
             <Plus className="h-4 w-4 mr-2" />
             Tambah Guru
-          </Button>
+          </Button> */}
         </div>
       </div>
 
