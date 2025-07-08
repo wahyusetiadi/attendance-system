@@ -1,4 +1,4 @@
-name: Presensi Frontend CI
+name: Presensi PKK Frontend CI
 
 on:
   push:
