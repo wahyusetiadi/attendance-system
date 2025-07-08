@@ -1,0 +1,26 @@
+name: Presensi Frontend CI
+
+on:
+  push:
+    branches:
+      - development-salim
+
+jobs:
+  build:
+    name: Run on Salim's Laptop
+    runs-on: [self-hosted, itn-edunusa-paud-kanzul-khairat-presensi-fe]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build the project
+        run: npm run build
