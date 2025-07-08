@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Run on the Salim's Laptop
+    name: Run on Salim's Laptop
     runs-on: [self-hosted, itn-edunusa-paud-kanzul-khairat-presensi-fe]
 
     steps:
