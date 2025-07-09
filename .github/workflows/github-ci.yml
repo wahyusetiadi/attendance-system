@@ -38,4 +38,6 @@ jobs:
           node-version: 18
 
       - name: Build the project
+        env:
+          NEXT_PUBLIC_API_URL: ${{env.NEXT_PUBLIC_API_URL}}
         run: npm run build
