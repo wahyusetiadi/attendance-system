@@ -12,12 +12,39 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}-img
   DOCKERFILE_PATH: './Dockerfile'
-  DOMAIN_DEVELOPMENT: 'development-paud-kanzul-khairat-presensi.edunusa.co.id'
-  PORT_EXPOSE_DEVELOPMENT: 3501
-  DOMAIN_STAGING: 'staging-paud-kanzul-khairat-presensi.edunusa.co.id'
-  PORT_EXPOSE_STAGING: 3503
-  DOMAIN_PRODUCTION: 'paud-kanzul-khairat-presensi.edunusa.co.id'
-  PORT_EXPOSE_PRODUCTION: 3505
+  
+  # ✅ FIXED: Proper YAML syntax untuk environment variables
+  DOMAIN_APPS: >-
+    ${{
+      github.ref == 'refs/heads/development' && 'development-paud-kanzul-khairat-presensi.edunusa.co.id' ||
+      github.ref == 'refs/heads/staging' && 'staging-paud-kanzul-khairat-presensi.edunusa.co.id' ||
+      github.ref == 'refs/heads/production' && 'paud-kanzul-khairat-presensi.edunusa.co.id' ||
+      'development-paud-kanzul-khairat-presensi.edunusa.co.id'
+    }}
+  
+  PORT_EXPOSE_APPS: >-
+    ${{
+      github.ref == 'refs/heads/development' && '3501' ||
+      github.ref == 'refs/heads/staging' && '3503' ||
+      github.ref == 'refs/heads/production' && '3505' ||
+      '3501'
+    }}
+  
+  PORT_CONTAINER: >-
+    ${{
+      github.ref == 'refs/heads/development' && '6006' ||
+      github.ref == 'refs/heads/staging' && '6006' ||
+      github.ref == 'refs/heads/production' && '6006' ||
+      '6006'
+    }}
+  
+  NODE_ENV: >-
+    ${{
+      github.ref == 'refs/heads/development' && 'development' ||
+      github.ref == 'refs/heads/staging' && 'staging' ||
+      github.ref == 'refs/heads/production' && 'production' ||
+      'development'
+    }}
 
 jobs:
   # 1. INSTALL DEPENDENCIES
@@ -42,7 +69,12 @@ jobs:
     - name: 📋 Check package.json
       run: |
         echo "📄 Package.json contents:"
-        cat package.json | jq '.scripts'
+        if command -v jq &> /dev/null; then
+          cat package.json | jq '.scripts'
+        else
+          echo "jq not found, showing raw package.json scripts section"
+          grep -A 20 '"scripts"' package.json || echo "No scripts section found"
+        fi
     
     - name: 📦 Cache dependencies
       id: cache-deps
@@ -56,7 +88,6 @@ jobs:
           ${{ runner.os }}-node-
     
     - name: 📥 Install dependencies
-      if: steps.cache-deps.outputs.cache-hit != 'true'
       run: |
         echo "📦 Installing dependencies..."
         npm ci --prefer-offline --no-audit --progress=false
@@ -64,10 +95,10 @@ jobs:
     - name: 🔍 Verify installation
       run: |
         echo "✅ Dependencies installed successfully"
-        echo "📊 Node modules size: $(du -sh node_modules)"
-        echo "📋 Installed packages: $(npm list --depth=0 | wc -l)"
+        echo "📊 Node modules size: $(du -sh node_modules 2>/dev/null || echo 'N/A')"
+        echo "📋 Installed packages: $(npm list --depth=0 2>/dev/null | wc -l || echo 'N/A')"
 
-  # 2. LINTING & CODE QUALITY
+  # 2. CODE QUALITY CHECK
   code-quality:
     name: 🔍 Code Quality Check
     runs-on: self-hosted
@@ -90,13 +121,43 @@ jobs:
           ~/.npm
           node_modules
         key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+    
+    - name: 📥 Install dependencies if needed
+      run: |
+        if [ ! -d "node_modules" ]; then
+          echo "📦 Installing dependencies..."
+          npm ci --prefer-offline --no-audit --progress=false
+        fi
+    
+    - name: 🔍 Check available scripts
+      id: check-scripts
+      run: |
+        echo "Checking available npm scripts..."
+        
+        # Check if lint script exists
+        if grep -q '"lint"' package.json; then
+          echo "has-lint=true" >> $GITHUB_OUTPUT
+        else
+          echo "has-lint=false" >> $GITHUB_OUTPUT
+        fi
+        
+        # Check if format:check script exists
+        if grep -q '"format:check"' package.json; then
+          echo "has-format=true" >> $GITHUB_OUTPUT
+        else
+          echo "has-format=false" >> $GITHUB_OUTPUT
+        fi
     
     - name: 🔍 Run ESLint
+      if: steps.check-scripts.outputs.has-lint == 'true'
       run: |
         echo "🔍 Running ESLint..."
-        npm run lint || echo "⚠️ Linting completed with warnings"
+        npm run lint || echo "⚠️ ESLint completed with warnings"
     
     - name: 🎨 Run Prettier
+      if: steps.check-scripts.outputs.has-format == 'true'
       run: |
         echo "🎨 Checking code formatting..."
         npm run format:check || echo "⚠️ Formatting check completed"
@@ -106,7 +167,7 @@ jobs:
         echo "🔒 Running security audit..."
         npm audit --audit-level=moderate || echo "⚠️ Security audit completed with warnings"
 
-  # 3. BUILD APPS
+  # 3. BUILD APPLICATION
   build-application:
     name: 🏗️ Build Application
     runs-on: self-hosted
@@ -132,21 +193,46 @@ jobs:
           ~/.npm
           node_modules
         key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+    
+    - name: 📥 Install dependencies if needed
+      run: |
+        if [ ! -d "node_modules" ]; then
+          echo "📦 Installing dependencies..."
+          npm ci --prefer-offline --no-audit --progress=false
+        fi
     
     - name: 🏗️ Build application
       run: |
         echo "🏗️ Building application..."
+        echo "Environment: ${{ env.NODE_ENV }}"
         
-        # Set environment-specific build
+        # Check available build scripts and run appropriate one
         if [[ "${{ github.ref }}" == "refs/heads/development" ]]; then
           echo "Building for development..."
-          npm run build:dev
+          if grep -q '"build:dev"' package.json; then
+            npm run build:dev
+          else
+            echo "⚠️ build:dev script not found, using default build"
+            npm run build
+          fi
         elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
           echo "Building for staging..."
-          npm run build:staging
+          if grep -q '"build:staging"' package.json; then
+            npm run build:staging
+          else
+            echo "⚠️ build:staging script not found, using default build"
+            npm run build
+          fi
         elif [[ "${{ github.ref }}" == "refs/heads/production" ]]; then
           echo "Building for production..."
-          npm run build:prod
+          if grep -q '"build:prod"' package.json; then
+            npm run build:prod
+          else
+            echo "⚠️ build:prod script not found, using default build"
+            npm run build
+          fi
         else
           echo "Building for development (default)..."
           npm run build
@@ -158,12 +244,17 @@ jobs:
         echo "📊 Build analysis:"
         if [ -d "build" ]; then
           BUILD_SIZE=$(du -sh build/ | cut -f1)
+          echo "Build directory: build/"
           echo "Build size: $BUILD_SIZE"
           echo "artifact-name=build-$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
         elif [ -d "dist" ]; then
           BUILD_SIZE=$(du -sh dist/ | cut -f1)
+          echo "Build directory: dist/"
           echo "Build size: $BUILD_SIZE"
           echo "artifact-name=dist-$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+        else
+          echo "⚠️ No build directory found (build/ or dist/)"
+          echo "artifact-name=build-$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
         fi
     
     - name: 📤 Upload build artifacts
@@ -175,7 +266,7 @@ jobs:
           dist/
         retention-days: 30
 
-  # 4. TEST APPS
+  # 4. TEST APPLICATION
   test-application:
     name: 🧪 Test Application
     runs-on: self-hosted
@@ -198,6 +289,15 @@ jobs:
           ~/.npm
           node_modules
         key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+    
+    - name: 📥 Install dependencies if needed
+      run: |
+        if [ ! -d "node_modules" ]; then
+          echo "📦 Installing dependencies..."
+          npm ci --prefer-offline --no-audit --progress=false
+        fi
     
     - name: 📥 Download build artifacts
       uses: actions/download-artifact@v4
@@ -208,40 +308,51 @@ jobs:
     - name: 🧪 Run unit tests
       run: |
         echo "🧪 Running unit tests..."
-        npm test -- --coverage --ci --watchAll=false || echo "⚠️ Tests completed with warnings"
+        if npm test -- --coverage --ci --watchAll=false; then
+          echo "✅ Tests passed"
+        else
+          echo "⚠️ Tests completed with warnings"
+        fi
     
     - name: 📊 Test coverage
       run: |
         echo "📊 Test coverage report:"
         if [ -f "coverage/lcov-report/index.html" ]; then
-          echo "Coverage report generated"
-        fi
-    
-    - name: 🚀 Start test server
-      run: |
-        echo "🚀 Starting test server..."
-        
-        # Start application for smoke testing
-        if [ -f "package.json" ]; then
-          # Try to start with different commands
-          npm start &
-          SERVER_PID=$!
-          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
-          
-          # Wait for server to start
-          echo "⏳ Waiting for server to start..."
-          sleep 15
+          echo "✅ Coverage report generated"
+        else
+          echo "⚠️ No coverage report found"
         fi
     
     - name: 🔥 Smoke tests
       run: |
         echo "🔥 Running smoke tests..."
         
-        # Test different ports
-        PORTS=(3000 5000 8080)
+        # Install serve if needed for testing
+        if ! command -v serve &> /dev/null; then
+          npm install -g serve
+        fi
+        
+        # Test ports
+        TEST_PORTS=(${{ env.PORT_CONTAINER }} 3000 5000 8080)
         SUCCESS=false
         
-        for port in "${PORTS[@]}"; do
+        # Start a simple test server in background
+        echo "Starting test server..."
+        if [ -d "build" ]; then
+          serve -s build -p ${{ env.PORT_CONTAINER }} &
+          SERVER_PID=$!
+        elif [ -d "dist" ]; then
+          serve -s dist -p ${{ env.PORT_CONTAINER }} &
+          SERVER_PID=$!
+        else
+          echo "⚠️ No build output found, skipping smoke test"
+          exit 0
+        fi
+        
+        # Wait for server to start
+        sleep 15
+        
+        for port in "${TEST_PORTS[@]}"; do
           echo "Testing port $port..."
           
           # Test root endpoint
@@ -259,21 +370,15 @@ jobs:
           fi
         done
         
-        if [ "$SUCCESS" = false ]; then
-          echo "⚠️ Smoke test failed on all ports, but continuing..."
-          # Don't fail the pipeline for smoke test
-        fi
-    
-    - name: 🛑 Stop test server
-      if: always()
-      run: |
+        # Stop test server
         if [ -n "$SERVER_PID" ]; then
-          echo "🛑 Stopping test server..."
           kill $SERVER_PID || true
+          sleep 5
         fi
         
-        # Kill any remaining node processes
-        pkill -f "node" || true
+        if [ "$SUCCESS" = false ]; then
+          echo "⚠️ Smoke test failed on all ports, but continuing..."
+        fi
     
     - name: 📤 Upload test results
       if: always()
@@ -295,6 +400,7 @@ jobs:
     outputs:
       image-tag: ${{ steps.image-info.outputs.tag }}
       image-digest: ${{ steps.build-push.outputs.digest }}
+      environment: ${{ steps.image-info.outputs.environment }}
       
     steps:
     - name: 🔄 Checkout code
@@ -318,10 +424,10 @@ jobs:
           echo "environment=ENVIRONMENT_STAGING" >> $GITHUB_OUTPUT
         elif [[ "${{ github.ref }}" == "refs/heads/production" ]]; then
           echo "tag=production" >> $GITHUB_OUTPUT
-          echo "environment=ENVIRONMENT_PRODUCTION" >> $GITHUB_OUTPUT
+          echo "environment=production" >> $GITHUB_OUTPUT
         else
-          echo "tag=dev" >> $GITHUB_OUTPUT
-          echo "environment=development" >> $GITHUB_OUTPUT
+          echo "tag=development" >> $GITHUB_OUTPUT
+          echo "environment=ENVIRONMENT_PRODUCTION" >> $GITHUB_OUTPUT
         fi
         
         # Set additional tags
@@ -352,7 +458,7 @@ jobs:
       with:
         context: .
         file: ${{ env.DOCKERFILE_PATH }}
-        platforms: linux/amd64,linux/arm64
+        platforms: linux/amd64
         push: true
         tags: |
           ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.image-info.outputs.tag }}
@@ -372,6 +478,7 @@ jobs:
           NODE_ENV=${{ steps.image-info.outputs.environment }}
           BUILD_DATE=${{ steps.image-info.outputs.build-date }}
           VCS_REF=${{ github.sha }}
+          PORT=${{ env.PORT_CONTAINER }}
     
     - name: 🔍 Image security scan
       uses: aquasecurity/trivy-action@master
@@ -395,39 +502,38 @@ jobs:
         echo "Digest: ${{ steps.build-push.outputs.digest }}"
         echo "Environment: ${{ steps.image-info.outputs.environment }}"
 
-  # 6. DEPLOY APPS
+  # 6. DEPLOY APPLICATION
   deploy-application:
     name: 🚀 Deploy Application
     runs-on: self-hosted
     needs: build-and-push-image
     if: github.event_name == 'push'
-    environment: ${{ needs.build-and-push-image.outputs.environment || 'ENVIRONMENT_DEVELOPMENT' }}
+    environment: ${{ needs.build-and-push-image.outputs.environment }}
     
     steps:
     - name: 🔄 Checkout code
       uses: actions/checkout@v4
 
-    - name: Set CONTAINER_NAME from repo and branch
+    - name: 🏷️ Set container name
       run: |
-         REPO_NAME=$(basename "${{ github.repository }}")
-         BRANCH_NAME=${GITHUB_REF##*/}
-         echo "CONTAINER_NAME=${REPO_NAME}-${BRANCH_NAME}-ctr" >> $GITHUB_ENV
+        REPO_NAME=$(basename "${{ github.repository }}")
+        BRANCH_NAME=${GITHUB_REF##*/}
+        CONTAINER_NAME="${REPO_NAME}-${BRANCH_NAME}-ctr"
+        echo "CONTAINER_NAME=$CONTAINER_NAME" >> $GITHUB_ENV
+        echo "Container name: $CONTAINER_NAME"
     
     - name: 🔧 Set deployment variables
       run: |
-        if [[ "${{ github.ref }}" == "refs/heads/development" ]]; then
-          echo "PORT=3001" >> $GITHUB_ENV
-          echo "CONTAINER_NAME=$CONTAINER_NAME" >> $GITHUB_ENV
-          echo "DOMAIN=${{env.DOMAIN_DEVELOPMENT}}" >> $GITHUB_ENV
-        elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
-          echo "PORT=3002" >> $GITHUB_ENV
-          echo "CONTAINER_NAME=$CONTAINER_NAME" >> $GITHUB_ENV
-          echo "DOMAIN=${{env.DOMAIN_STAGING}}" >> $GITHUB_ENV
-        elif [[ "${{ github.ref }}" == "refs/heads/production" ]]; then
-          echo "PORT=3003" >> $GITHUB_ENV
-          echo "CONTAINER_NAME=$CONTAINER_NAME" >> $GITHUB_ENV
-          echo "DOMAIN=${{env.DOMAIN_PRODUCTION}}" >> $GITHUB_ENV
-        fi
+        echo "PORT_EXPOSE=${{ env.PORT_EXPOSE_APPS }}" >> $GITHUB_ENV
+        echo "PORT_CONTAINER=${{ env.PORT_CONTAINER }}" >> $GITHUB_ENV
+        echo "DOMAIN=${{ env.DOMAIN_APPS }}" >> $GITHUB_ENV
+        echo "NODE_ENV=${{ env.NODE_ENV }}" >> $GITHUB_ENV
+        
+        echo "🚀 Deployment Configuration:"
+        echo "  Environment: ${{ env.NODE_ENV }}"
+        echo "  Container: $CONTAINER_NAME"
+        echo "  Domain: ${{ env.DOMAIN_APPS }}"
+        echo "  Port Mapping: ${{ env.PORT_EXPOSE_APPS }}:${{ env.PORT_CONTAINER }}"
     
     - name: 🔐 Login to registry
       run: |
@@ -442,24 +548,24 @@ jobs:
     - name: 🛑 Stop and remove old container
       run: |
         echo "🛑 Stopping old container..."
-        docker stop ${{ env.CONTAINER_NAME }} || true
-        docker rm ${{ env.CONTAINER_NAME }} || true
+        docker stop $CONTAINER_NAME || true
+        docker rm $CONTAINER_NAME || true
         
-        # Wait for port to be released
-        sleep 5
+        echo "⏳ Waiting for port to be released..."
+        sleep 10
     
     - name: 🚀 Deploy new container
       run: |
         echo "🚀 Deploying new container..."
         docker run -d \
-          --name ${{ env.CONTAINER_NAME }} \
+          --name $CONTAINER_NAME \
           --restart unless-stopped \
-          -p ${{ env.PORT }}:3000 \
-          -e NODE_ENV=${{ needs.build-and-push-image.outputs.environment }} \
-          -e PORT=3000 \
+          -p ${{ env.PORT_EXPOSE_APPS }}:${{ env.PORT_CONTAINER }} \
+          -e NODE_ENV=${{ env.NODE_ENV }} \
+          -e PORT=${{ env.PORT_CONTAINER }} \
           --label "traefik.enable=true" \
-          --label "traefik.http.routers.${{ env.CONTAINER_NAME }}.rule=Host(\`${{ env.DOMAIN }}\`)" \
-          --label "traefik.http.services.${{ env.CONTAINER_NAME }}.loadbalancer.server.port=3000" \
+          --label "traefik.http.routers.$CONTAINER_NAME.rule=Host(\`${{ env.DOMAIN_APPS }}\`)" \
+          --label "traefik.http.services.$CONTAINER_NAME.loadbalancer.server.port=${{ env.PORT_CONTAINER }}" \
           ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-push-image.outputs.image-tag }}
     
     - name: ⏳ Wait for container startup
@@ -468,12 +574,13 @@ jobs:
         sleep 30
         
         # Check if container is running
-        if docker ps | grep -q ${{ env.CONTAINER_NAME }}; then
+        if docker ps | grep -q $CONTAINER_NAME; then
           echo "✅ Container is running"
+          docker ps | grep $CONTAINER_NAME
         else
           echo "❌ Container failed to start"
           echo "Container logs:"
-          docker logs ${{ env.CONTAINER_NAME }}
+          docker logs $CONTAINER_NAME
           exit 1
         fi
     
@@ -486,11 +593,10 @@ jobs:
         while [ $attempt -le $max_attempts ]; do
           echo "Health check attempt $attempt/$max_attempts..."
           
-          # Test different endpoints
-          if curl -f -s http://localhost:${{ env.PORT }}/ > /dev/null 2>&1; then
+          if curl -f -s http://localhost:${{ env.PORT_EXPOSE_APPS }}/ > /dev/null 2>&1; then
             echo "✅ Health check passed (root endpoint)!"
             break
-          elif curl -f -s http://localhost:${{ env.PORT }}/health > /dev/null 2>&1; then
+          elif curl -f -s http://localhost:${{ env.PORT_EXPOSE_APPS }}/health > /dev/null 2>&1; then
             echo "✅ Health check passed (health endpoint)!"
             break
           else
@@ -503,7 +609,7 @@ jobs:
         if [ $attempt -gt $max_attempts ]; then
           echo "❌ Health check failed after $max_attempts attempts"
           echo "Container logs:"
-          docker logs ${{ env.CONTAINER_NAME }}
+          docker logs $CONTAINER_NAME
           exit 1
         fi
     
@@ -522,11 +628,11 @@ jobs:
         # Remove dangling images
         docker image prune -f
 
-  # 7. COMPLETED JOBS
+  # 7. DEPLOYMENT COMPLETE
   deployment-complete:
     name: 📢 Deployment Complete
     runs-on: self-hosted
-    needs: [deploy-application]
+    needs: [deploy-application, build-and-push-image]
     if: always()
     
     steps:
@@ -537,15 +643,22 @@ jobs:
         echo "Repository: ${{ github.repository }}"
         echo "Branch: ${{ github.ref_name }}"
         echo "Commit: ${{ github.sha }}"
-        echo "Environment: ${{ needs.deploy-application.environment }}"
+        echo "Environment: ${{ needs.build-and-push-image.outputs.environment }}"
         echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-push-image.outputs.image-tag }}"
-        echo "Status: ${{ job.status }}"
+        echo "Domain: ${{ env.DOMAIN_APPS }}"
+        echo "Port: ${{ env.PORT_EXPOSE_APPS }}"
+        echo "Status: ${{ needs.deploy-application.result }}"
         echo "Time: $(date)"
     
     - name: 🔄 Rollback on failure
-      if: failure()
+      if: failure() || needs.deploy-application.result == 'failure'
       run: |
         echo "🔄 Deployment failed, initiating rollback..."
+        
+        # Get container name
+        REPO_NAME=$(basename "${{ github.repository }}")
+        BRANCH_NAME=${GITHUB_REF##*/}
+        CONTAINER_NAME="${REPO_NAME}-${BRANCH_NAME}-ctr"
         
         # Find previous working image
         PREVIOUS_IMAGE=$(docker images ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
@@ -558,17 +671,24 @@ jobs:
           echo "Rolling back to: $PREVIOUS_IMAGE"
           
           # Stop failed container
-          docker stop ${{ env.CONTAINER_NAME }} || true
-          docker rm ${{ env.CONTAINER_NAME }} || true
+          docker stop $CONTAINER_NAME || true
+          docker rm $CONTAINER_NAME || true
           
           # Start previous version
           docker run -d \
-            --name ${{ env.CONTAINER_NAME }} \
+            --name $CONTAINER_NAME \
             --restart unless-stopped \
-            -p ${{ env.PORT }}:3000 \
+            -p ${{ env.PORT_EXPOSE_APPS }}:${{ env.PORT_CONTAINER }} \
+            -e NODE_ENV=${{ env.NODE_ENV }} \
             "$PREVIOUS_IMAGE"
           
-          echo "✅ Rollback completed"
+          # Wait and verify rollback
+          sleep 15
+          if curl -f -s http://localhost:${{ env.PORT_EXPOSE_APPS }}/ > /dev/null 2>&1; then
+            echo "✅ Rollback successful"
+          else
+            echo "❌ Rollback failed"
+          fi
         else
           echo "❌ No previous image found for rollback"
         fi
