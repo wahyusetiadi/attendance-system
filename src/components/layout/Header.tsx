@@ -188,7 +188,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   const { user, logout } = useAuth();
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 px-4 sm:px-6 py-4">
+    <header className="bg-white shadow-sm border-b border-gray-200 px-4 sm:px-6 py-4 lg:ml-64">
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-4">
           {/* Mobile Menu Button */}

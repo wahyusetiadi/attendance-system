@@ -25,8 +25,7 @@ export default function PagesLayout({
       <Header onMenuClick={handleMenuClick} />
       <div className="flex">
         <Sidebar isOpen={sidebarOpen} onClose={handleSidebarClose} />
-        {/* ✅ Padding yang sangat minimal untuk iPhone SE */}
-        <main className="flex-1 p-2 xs:p-3 sm:p-4 md:p-6 lg:ml-64">
+        <main className="flex-1 p-2 xs:p-3 sm:p-4 md:p-6 lg:ml-60">
           {children}
         </main>
       </div>
