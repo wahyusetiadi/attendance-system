@@ -61,22 +61,23 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       <div 
-        className="px-6 py-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
+        className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
         onClick={() => setIsFilterOpen(!isFilterOpen)}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <Filter className="h-5 w-5 text-gray-500" />
-            <h3 className="text-lg font-semibold text-gray-900">Filter Data</h3>
+            <Filter className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900">Filter Data</h3>
 
             {hasActiveFilters() && (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                Filter Aktif
+              <span className="inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                <span className="hidden sm:inline">Filter Aktif</span>
+                <span className="sm:hidden">Aktif</span>
               </span>
             )}
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1 sm:space-x-2">
             {hasActiveFilters() && (
               <Button 
                 variant="ghost" 
@@ -85,36 +86,38 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
                   e.stopPropagation();
                   handleReset();
                 }}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 p-1 sm:p-2"
               >
-                <RotateCcw className="h-4 w-4" />
+                <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4" />
               </Button>
             )}
 
             {isFilterOpen ? (
-              <ChevronUp className="h-5 w-5 text-gray-400" />
+              <ChevronUp className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
             ) : (
-              <ChevronDown className="h-5 w-5 text-gray-400" />
+              <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
             )}
           </div>
         </div>
 
         {!isFilterOpen && (
-          <div className="mt-2 text-sm text-gray-600">
-            <div className="flex flex-wrap items-center gap-2">
-              <span><strong>Periode:</strong> {filter.startDate} hingga {filter.endDate}</span>
+          <div className="mt-2 text-xs sm:text-sm text-gray-600">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1 sm:gap-2">
+              <span className="break-all">
+                <strong>Periode:</strong> {filter.startDate} hingga {filter.endDate}
+              </span>
               {filter.teacherId && (
-                <span className="inline-flex items-center px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs">
+                <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md bg-blue-50 text-blue-700 text-xs">
                   Guru: {teachers.find(t => t.id === filter.teacherId)?.name}
                 </span>
               )}
               {filter.status && (
-                <span className="inline-flex items-center px-2 py-1 rounded-md bg-green-50 text-green-700 text-xs">
+                <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md bg-green-50 text-green-700 text-xs">
                   Status: {statusOptions.find(s => s.value === filter.status)?.label}
                 </span>
               )}
               {filter.page && filter.page > 1 && (
-                <span className="inline-flex items-center px-2 py-1 rounded-md bg-purple-50 text-purple-700 text-xs">
+                <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md bg-purple-50 text-purple-700 text-xs">
                   Halaman: {filter.page}
                 </span>
               )}
@@ -124,19 +127,19 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
       </div>
 
       {isFilterOpen && (
-        <div className="px-6 py-6">
-          <div className="space-y-6">
+        <div className="px-3 sm:px-6 py-4 sm:py-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Quick Date Filters */}
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-3 block">
+              <label className="text-sm font-medium text-gray-700 mb-2 sm:mb-3 block">
                 Filter Cepat
               </label>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
                 <Button 
                   variant="outline" 
                   size="sm"
                   onClick={() => handleQuickFilter(0)}
-                  className={filter.startDate === filter.endDate && filter.startDate === new Date().toISOString().split('T')[0] ? 'bg-blue-50 border-blue-200 text-blue-700' : ''}
+                  className={`text-xs sm:text-sm ${filter.startDate === filter.endDate && filter.startDate === new Date().toISOString().split('T')[0] ? 'bg-blue-50 border-blue-200 text-blue-700' : ''}`}
                 >
                   Hari Ini
                 </Button>
@@ -144,15 +147,17 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
                   variant="outline" 
                   size="sm"
                   onClick={() => handleQuickFilter(7)}
+                  className="text-xs sm:text-sm"
                 >
-                  7 Hari Terakhir
+                  7 Hari
                 </Button>
                 <Button 
                   variant="outline" 
                   size="sm"
                   onClick={() => handleQuickFilter(30)}
+                  className="text-xs sm:text-sm"
                 >
-                  30 Hari Terakhir
+                  30 Hari
                 </Button>
                 <Button 
                   variant="outline" 
@@ -167,6 +172,7 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
                       page: 1
                     });
                   }}
+                  className="text-xs sm:text-sm"
                 >
                   Bulan Ini
                 </Button>
@@ -175,31 +181,33 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
 
             {/* Date Range */}
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-3 block">
+              <label className="text-sm font-medium text-gray-700 mb-2 sm:mb-3 block">
                 Rentang Tanggal
               </label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                 <Input
                   label="Tanggal Mulai"
                   type="date"
                   value={filter.startDate}
                   onChange={(e) => onFilterChange({ ...filter, startDate: e.target.value, page: 1 })}
+                  className="text-sm"
                 />
                 <Input
                   label="Tanggal Akhir"
                   type="date"
                   value={filter.endDate}
                   onChange={(e) => onFilterChange({ ...filter, endDate: e.target.value, page: 1 })}
+                  className="text-sm"
                 />
               </div>
             </div>
 
             {/* Teacher and Status Filters */}
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-3 block">
+              <label className="text-sm font-medium text-gray-700 mb-2 sm:mb-3 block">
                 Filter Lanjutan
               </label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">
                     Guru
@@ -211,7 +219,7 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
                       teacherId: e.target.value ? Number(e.target.value) : undefined,
                       page: 1
                     })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">Semua Guru</option>
                     {teachers.map((teacher) => (
@@ -233,7 +241,7 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
                       status: e.target.value || undefined,
                       page: 1
                     })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">Semua Status</option>
                     {statusOptions.map((option) => (
@@ -248,10 +256,10 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
 
             {/* Sort and Pagination Options */}
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-3 block">
+              <label className="text-sm font-medium text-gray-700 mb-2 sm:mb-3 block">
                 Pengurutan & Tampilan
               </label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">
                     Urutkan Berdasarkan
@@ -263,7 +271,7 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
                       sortBy: e.target.value as AttendanceFilter['sortBy'],
                       page: 1
                     })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="date">Tanggal</option>
                     <option value="name">Nama Guru</option>
@@ -282,7 +290,7 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
                       sortOrder: e.target.value as AttendanceFilter['sortOrder'],
                       page: 1
                     })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="desc">Terbaru</option>
                     <option value="asc">Terlama</option>
@@ -291,7 +299,8 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
 
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">
-                    Items per halaman
+                    <span className="hidden sm:inline">Items per halaman</span>
+                    <span className="sm:hidden">Per halaman</span>
                   </label>
                   <select
                     value={filter.limit || 10}
@@ -300,7 +309,7 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
                       limit: Number(e.target.value),
                       page: 1
                     })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value={10}>10</option>
                     <option value={20}>20</option>
@@ -312,8 +321,12 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
             </div>
 
             {/* Action Buttons */}
-            <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-              <Button variant="outline" onClick={handleReset}>
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0 pt-4 border-t border-gray-200">
+              <Button 
+                variant="outline" 
+                onClick={handleReset}
+                className="text-sm w-full sm:w-auto"
+              >
                 <RotateCcw className="h-4 w-4 mr-2" />
                 Reset Semua Filter
               </Button>
@@ -321,7 +334,7 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
               <Button 
                 variant="ghost" 
                 onClick={() => setIsFilterOpen(false)}
-                className="text-gray-500"
+                className="text-gray-500 text-sm w-full sm:w-auto"
               >
                 Tutup Filter
               </Button>

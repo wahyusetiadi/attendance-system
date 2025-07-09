@@ -65,59 +65,71 @@ export function AttendanceStats({ summary, totalRecords }: AttendanceStatsProps)
   ];
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-gray-900">Ringkasan Statistik</h3>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6">
+      {/* Header Section - Optimized for mobile */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2 sm:mb-0">
+          Ringkasan Statistik
+        </h3>
         <div className="flex items-center space-x-2">
-          <TrendingUp className="h-5 w-5 text-green-500" />
-          <span className="text-sm text-green-600 font-medium">
+          <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-green-500" />
+          <span className="text-xs sm:text-sm text-green-600 font-medium">
             {summary.attendanceRate.toFixed(1)}% tingkat kehadiran
           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+      {/* Stats Grid - Responsive for iPhone SE */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 mb-4 sm:mb-6">
         {stats.map((stat, index) => (
           <div
             key={index}
-            className={`${stat.bgColor} ${stat.borderColor} border rounded-lg p-4 hover:shadow-md transition-shadow`}
+            className={`${stat.bgColor} ${stat.borderColor} border rounded-lg p-2 sm:p-4 hover:shadow-md transition-shadow`}
           >
-            <div className="flex items-center justify-between mb-3">
-              <stat.icon className={`h-6 w-6 ${stat.color}`} />
-              <span className={`text-xs font-medium ${stat.color} bg-white px-2 py-1 rounded-full`}>
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <stat.icon className={`h-4 w-4 sm:h-6 sm:w-6 ${stat.color}`} />
+              <span className={`text-xs font-medium ${stat.color} bg-white px-1 sm:px-2 py-0.5 sm:py-1 rounded-full`}>
                 {stat.percentage.toFixed(1)}%
               </span>
             </div>
-            <div className="space-y-1">
-              <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-              <p className={`text-sm ${stat.color} font-medium`}>{stat.title}</p>
+            <div className="space-y-0.5 sm:space-y-1">
+              <p className="text-lg sm:text-2xl font-bold text-gray-900">{stat.value}</p>
+              <p className={`text-xs sm:text-sm ${stat.color} font-medium leading-tight`}>
+                {stat.title}
+              </p>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Additional Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-gray-200">
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4">
+      {/* Additional Metrics - Stacked on mobile */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6 pt-4 sm:pt-6 border-t border-gray-200">
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-blue-600 font-medium">Rata-rata Jam Kerja</p>
-              <p className="text-2xl font-bold text-blue-700">
+              <p className="text-xs sm:text-sm text-blue-600 font-medium">
+                Rata-rata Jam Kerja
+              </p>
+              <p className="text-xl sm:text-2xl font-bold text-blue-700">
                 {summary.averageWorkingHours.toFixed(1)} jam
               </p>
             </div>
-            <Clock className="h-8 w-8 text-blue-500" />
+            <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4">
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-green-600 font-medium">Total Data</p>
-              <p className="text-2xl font-bold text-green-700">{totalRecords}</p>
+              <p className="text-xs sm:text-sm text-green-600 font-medium">
+                Total Data
+              </p>
+              <p className="text-xl sm:text-2xl font-bold text-green-700">
+                {totalRecords}
+              </p>
               <p className="text-xs text-green-600">record absensi</p>
             </div>
-            <Activity className="h-8 w-8 text-green-500" />
+            <Activity className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" />
           </div>
         </div>
       </div>

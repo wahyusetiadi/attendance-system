@@ -341,7 +341,7 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
 
       {/* Dropdown Panel */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-lg border z-50">
+        <div className="absolute md:right-0 md:top-full mt-2 w-80 bg-white rounded-lg shadow-lg border z-50">
           <div className="p-4 border-b">
             <div className="flex items-center justify-between">
               <div>
