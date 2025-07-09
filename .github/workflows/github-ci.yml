@@ -6,7 +6,7 @@ on:
       - development-salim
 
 jobs:
-  build:
+  install:
     name: Run on the Salim's Laptop
     runs-on: [self-hosted, itn-edunusa-paud-kanzul-khairat-presensi-fe]
 
@@ -22,7 +22,20 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+  build:
+    name: Build the project
+    runs-on: [self-hosted, itn-edunusa-paud-kanzul-khairat-presensi-fe]
+
+    needs: install
+
+    steps:
+      # - name: Checkout repository
+      #   uses: actions/checkout@v4
+
+      # - name: Setup Node.js
+      #   uses: actions/setup-node@v4
+      #   with:
+      #     node-version: 18
+
       - name: Build the project
-        env:
-          NEXT_PUBLIC_API_URL: http://localhost:3502
         run: npm run build
