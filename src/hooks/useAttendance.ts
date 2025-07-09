@@ -9,18 +9,14 @@ import {
   AttendanceFilter,
   AttendanceSummary,
   CheckInOutStatus,
+  AttendancePagination,
 } from "@/types/attendance";
 
 interface UseAttendanceReturn {
   attendanceRecords: AttendanceRecord[];
   isLoading: boolean;
   error: string | null;
-  pagination: {
-    page: number;
-    limit: number;
-    totalPages: number;
-    totalItems: number;
-  } | null;
+  pagination: AttendancePagination | null;
   summary: AttendanceSummary | null;
   fetchAttendance: (filter?: AttendanceFilter) => Promise<void>;
   checkIn: (data: CheckInRequest) => Promise<AttendanceRecord | null>;
@@ -51,12 +47,9 @@ export const useAttendance = (
   >([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pagination, setPagination] = useState<{
-    page: number;
-    limit: number;
-    totalPages: number;
-    totalItems: number;
-  } | null>(null);
+  const [pagination, setPagination] = useState<AttendancePagination | null>(
+    null
+  );
   const [summary, setSummary] = useState<AttendanceSummary | null>(null);
   const [currentFilter, setCurrentFilter] = useState<AttendanceFilter>(
     initialFilter || {
@@ -66,6 +59,8 @@ export const useAttendance = (
       endDate: new Date().toISOString().split("T")[0],
       sortBy: "date",
       sortOrder: "desc",
+      page: 1,
+      limit: 10,
     }
   );
 
@@ -99,47 +94,74 @@ export const useAttendance = (
     };
   };
 
-  const fetchAttendance = async (filter?: AttendanceFilter) => {
-    setIsLoading(true);
-    setError(null);
+const fetchAttendance = async (filter?: AttendanceFilter) => {
+  setIsLoading(true);
+  setError(null);
 
-    const queryFilter = filter || currentFilter;
-    setCurrentFilter(queryFilter);
+  const queryFilter = filter || currentFilter;
+  setCurrentFilter(queryFilter);
 
-    try {
-      const params = {
-        page: queryFilter.page,
-        limit: queryFilter.limit,
-        startDate: queryFilter.startDate,
-        endDate: queryFilter.endDate,
-        teacherId: queryFilter.teacherId,
-        status: queryFilter.status,
-        sortBy: queryFilter.sortBy,
-        sortOrder: queryFilter.sortOrder,
-      };
+  try {
+    const params = {
+      page: queryFilter.page || 1,
+      limit: queryFilter.limit || 10,
+      startDate: queryFilter.startDate,
+      endDate: queryFilter.endDate,
+      teacherId: queryFilter.teacherId,
+      status: queryFilter.status,
+      sortBy: queryFilter.sortBy,
+      sortOrder: queryFilter.sortOrder,
+    };
 
-      const response = await attendanceAPI.getAll(params);
+    console.log("🔍 Attendance API params:", params);
 
-      if (response.success) {
-        setAttendanceRecords(response.data);
-        setSummary(calculateSummary(response.data));
-        if (response.pagination) {
-          setPagination(response.pagination);
-        }
+    const response = await attendanceAPI.getAll(params);
+
+    console.log("📥 Attendance API response:", response);
+
+    if (response.success) {
+      const records = response.data || [];
+      setAttendanceRecords(records);
+      setSummary(calculateSummary(records));
+
+      if (response.pagination) {
+        console.log("📊 Backend pagination RAW:", JSON.stringify(response.pagination, null, 2));
+
+        // ✅ Type assertion to fix the interface mismatch
+        const backendPagination = response.pagination as any;
+
+        const paginationData: AttendancePagination = {
+          page: Number(backendPagination.page) || 1,
+          limit: Number(backendPagination.limit) || 10,
+          total: Number(backendPagination.total) || 0, // ← Explicitly use 'total'
+          totalPages: Number(backendPagination.totalPages) || 0,
+          hasNext: Boolean(backendPagination.hasNext),
+          hasPrev: Boolean(backendPagination.hasPrev),
+          nextPage: backendPagination.nextPage ? Number(backendPagination.nextPage) : null,
+          prevPage: backendPagination.prevPage ? Number(backendPagination.prevPage) : null,
+        };
+
+        console.log("📊 Frontend pagination MAPPED:", JSON.stringify(paginationData, null, 2));
+        setPagination(paginationData);
       } else {
-        setError(response.message || "Failed to fetch attendance records");
+        console.log("⚠️ No pagination in response");
+        setPagination(null);
       }
-    } catch (err: any) {
-      const errorMessage =
-        err.response?.data?.message ||
-        err.message ||
-        "Failed to fetch attendance records";
-      setError(errorMessage);
-      console.error("Error fetching attendance:", err);
-    } finally {
-      setIsLoading(false);
+    } else {
+      setError(response.message || "Failed to fetch attendance records");
     }
-  };
+  } catch (err: any) {
+    const errorMessage =
+      err.response?.data?.message ||
+      err.message ||
+      "Failed to fetch attendance records";
+    setError(errorMessage);
+    console.error("Error fetching attendance:", err);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   const checkIn = async (
     data: CheckInRequest
@@ -151,7 +173,6 @@ export const useAttendance = (
       const response = await attendanceAPI.checkIn(data);
 
       if (response.success) {
-        // Refresh data after check-in
         await fetchAttendance(currentFilter);
         return response.data;
       } else {
@@ -179,7 +200,6 @@ export const useAttendance = (
       const response = await attendanceAPI.checkOut(data);
 
       if (response.success) {
-        // Refresh data after check-out
         await fetchAttendance(currentFilter);
         return response.data;
       } else {
@@ -236,7 +256,6 @@ export const useAttendance = (
       const response = await attendanceAPI.createManual(data);
 
       if (response.success) {
-        // Refresh data after manual entry
         await fetchAttendance(currentFilter);
         return response.data;
       } else {
@@ -255,56 +274,53 @@ export const useAttendance = (
       setIsLoading(false);
     }
   };
-  
-  // hooks/useAttendance.ts - Update fungsi updateRecord
-// Fix the updateRecord function to match the expected interface
-const updateRecord = async (
-  id: number, 
-  data: Partial<AttendanceRecord>
-): Promise<AttendanceRecord | null> => {
-  try {
-    setIsLoading(true);
-    setError(null);
 
-    // Handle the notes field - convert null to undefined
-    const sanitizedData = {
-      ...data,
-      notes: data.notes === null ? undefined : data.notes
-    };
+  const updateRecord = async (
+    id: number,
+    data: Partial<AttendanceRecord>
+  ): Promise<AttendanceRecord | null> => {
+    try {
+      setIsLoading(true);
+      setError(null);
 
-    // If update through status endpoint
-    if (sanitizedData.status && sanitizedData.teacherId && sanitizedData.date) {
-      const response = await attendanceAPI.updateAttendanceStatus(
-        sanitizedData.teacherId,
-        sanitizedData.date,
-        sanitizedData.status,
-        sanitizedData.notes // Now this will be string | undefined
-      );
+      const sanitizedData = {
+        ...data,
+        notes: data.notes === null ? undefined : data.notes,
+      };
 
-      if (response.success) {
-        await fetchAttendance(currentFilter);
-        return response.data; // Return the updated record
+      if (
+        sanitizedData.status &&
+        sanitizedData.teacherId &&
+        sanitizedData.date
+      ) {
+        const response = await attendanceAPI.updateAttendanceStatus(
+          sanitizedData.teacherId,
+          sanitizedData.date,
+          sanitizedData.status,
+          sanitizedData.notes
+        );
+
+        if (response.success) {
+          await fetchAttendance(currentFilter);
+          return response.data;
+        }
+      } else {
+        const response = await attendanceAPI.update(id, sanitizedData);
+        if (response.success) {
+          await fetchAttendance(currentFilter);
+          return response.data;
+        }
       }
-    } else {
-      // Fallback to regular update
-      const response = await attendanceAPI.update(id, sanitizedData);
-      if (response.success) {
-        await fetchAttendance(currentFilter);
-        return response.data; // Return the updated record
-      }
+
+      return null;
+    } catch (error) {
+      console.error("Error updating record:", error);
+      setError("Gagal mengupdate data absensi");
+      return null;
+    } finally {
+      setIsLoading(false);
     }
-
-    // If neither update succeeded, return null
-    return null;
-  } catch (error) {
-    console.error("Error updating record:", error);
-    setError("Gagal mengupdate data absensi");
-    return null;
-  } finally {
-    setIsLoading(false);
-  }
-};
-
+  };
 
   const deleteRecord = async (id: number): Promise<boolean> => {
     setIsLoading(true);
@@ -314,7 +330,6 @@ const updateRecord = async (
       const response = await attendanceAPI.delete(id);
 
       if (response.success) {
-        // Remove record from local state
         setAttendanceRecords((prev) =>
           prev.filter((record) => record.id !== id)
         );
@@ -338,7 +353,6 @@ const updateRecord = async (
     await fetchAttendance(currentFilter);
   };
 
-  // Fetch attendance on mount
   useEffect(() => {
     fetchAttendance();
   }, []);

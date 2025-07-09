@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { AttendanceFilter, AttendanceRecord } from '@/types/attendance';
-import { Teacher } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Search, Filter, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
+import { Filter, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
+import { Teacher } from '@/types/teacher';
 
 interface AttendanceFiltersProps {
   filter: AttendanceFilter;
@@ -15,7 +15,6 @@ interface AttendanceFiltersProps {
 }
 
 export function AttendanceFilters({ filter, onFilterChange, attendanceData, teachers }: AttendanceFiltersProps) {
-  // ✅ State for collapsible filter
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const statusOptions = [
@@ -31,7 +30,9 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
       startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       endDate: new Date().toISOString().split('T')[0],
       sortBy: 'date',
-      sortOrder: 'desc'
+      sortOrder: 'desc',
+      page: 1,
+      limit: 10
     };
     onFilterChange(defaultFilter);
   };
@@ -43,11 +44,11 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
     onFilterChange({
       ...filter,
       startDate,
-      endDate
+      endDate,
+      page: 1 // Reset to page 1 when changing filters
     });
   };
 
-  // Check if any filters are active (not default)
   const hasActiveFilters = () => {
     return (
       filter.teacherId ||
@@ -59,7 +60,6 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      {/* ✅ Collapsible Header */}
       <div 
         className="px-6 py-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
         onClick={() => setIsFilterOpen(!isFilterOpen)}
@@ -69,7 +69,6 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
             <Filter className="h-5 w-5 text-gray-500" />
             <h3 className="text-lg font-semibold text-gray-900">Filter Data</h3>
 
-            {/* ✅ Active filter indicator */}
             {hasActiveFilters() && (
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                 Filter Aktif
@@ -78,7 +77,6 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
           </div>
 
           <div className="flex items-center space-x-2">
-            {/* ✅ Quick Reset Button (always visible) */}
             {hasActiveFilters() && (
               <Button 
                 variant="ghost" 
@@ -93,7 +91,6 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
               </Button>
             )}
 
-            {/* ✅ Expand/Collapse Icon */}
             {isFilterOpen ? (
               <ChevronUp className="h-5 w-5 text-gray-400" />
             ) : (
@@ -102,7 +99,6 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
           </div>
         </div>
 
-        {/* ✅ Filter Summary (when collapsed) */}
         {!isFilterOpen && (
           <div className="mt-2 text-sm text-gray-600">
             <div className="flex flex-wrap items-center gap-2">
@@ -117,12 +113,16 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
                   Status: {statusOptions.find(s => s.value === filter.status)?.label}
                 </span>
               )}
+              {filter.page && filter.page > 1 && (
+                <span className="inline-flex items-center px-2 py-1 rounded-md bg-purple-50 text-purple-700 text-xs">
+                  Halaman: {filter.page}
+                </span>
+              )}
             </div>
           </div>
         )}
       </div>
 
-      {/* ✅ Collapsible Content */}
       {isFilterOpen && (
         <div className="px-6 py-6">
           <div className="space-y-6">
@@ -163,7 +163,8 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
                     onFilterChange({
                       ...filter,
                       startDate: startOfMonth.toISOString().split('T')[0],
-                      endDate: now.toISOString().split('T')[0]
+                      endDate: now.toISOString().split('T')[0],
+                      page: 1
                     });
                   }}
                 >
@@ -182,13 +183,13 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
                   label="Tanggal Mulai"
                   type="date"
                   value={filter.startDate}
-                  onChange={(e) => onFilterChange({ ...filter, startDate: e.target.value })}
+                  onChange={(e) => onFilterChange({ ...filter, startDate: e.target.value, page: 1 })}
                 />
                 <Input
                   label="Tanggal Akhir"
                   type="date"
                   value={filter.endDate}
-                  onChange={(e) => onFilterChange({ ...filter, endDate: e.target.value })}
+                  onChange={(e) => onFilterChange({ ...filter, endDate: e.target.value, page: 1 })}
                 />
               </div>
             </div>
@@ -207,7 +208,8 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
                     value={filter.teacherId || ''}
                     onChange={(e) => onFilterChange({ 
                       ...filter, 
-                      teacherId: e.target.value ? Number(e.target.value) : undefined
+                      teacherId: e.target.value ? Number(e.target.value) : undefined,
+                      page: 1
                     })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
@@ -228,7 +230,8 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
                     value={filter.status || ''}
                     onChange={(e) => onFilterChange({ 
                       ...filter, 
-                      status: e.target.value || undefined 
+                      status: e.target.value || undefined,
+                      page: 1
                     })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
@@ -243,12 +246,12 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
               </div>
             </div>
 
-            {/* Sort Options */}
+            {/* Sort and Pagination Options */}
             <div>
               <label className="text-sm font-medium text-gray-700 mb-3 block">
-                Pengurutan
+                Pengurutan & Tampilan
               </label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">
                     Urutkan Berdasarkan
@@ -257,7 +260,8 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
                     value={filter.sortBy}
                     onChange={(e) => onFilterChange({ 
                       ...filter, 
-                      sortBy: e.target.value as AttendanceFilter['sortBy']
+                      sortBy: e.target.value as AttendanceFilter['sortBy'],
+                      page: 1
                     })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
@@ -275,12 +279,33 @@ export function AttendanceFilters({ filter, onFilterChange, attendanceData, teac
                     value={filter.sortOrder}
                     onChange={(e) => onFilterChange({ 
                       ...filter, 
-                      sortOrder: e.target.value as AttendanceFilter['sortOrder']
+                      sortOrder: e.target.value as AttendanceFilter['sortOrder'],
+                      page: 1
                     })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="desc">Terbaru</option>
                     <option value="asc">Terlama</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    Items per halaman
+                  </label>
+                  <select
+                    value={filter.limit || 10}
+                    onChange={(e) => onFilterChange({ 
+                      ...filter, 
+                      limit: Number(e.target.value),
+                      page: 1
+                    })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
                   </select>
                 </div>
               </div>

@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Teacher, CreateTeacherRequest } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { X, Loader2 } from 'lucide-react';
+import { CreateTeacherRequest, Teacher } from '@/types/teacher';
 
 interface TeacherFormProps {
   teacher?: Teacher;
@@ -21,6 +21,7 @@ export function TeacherForm({ teacher, onSave, onCancel, isLoading = false }: Te
     phone: '',
     address: '',
     subject: '',
+    rfidUid: '',
     isActive: true,
   });
 
@@ -35,6 +36,7 @@ export function TeacherForm({ teacher, onSave, onCancel, isLoading = false }: Te
         phone: teacher.phone || '',
         address: teacher.address || '',
         subject: teacher.subject || '',
+        rfidUid: teacher.rfidUid || '',
         isActive: teacher.isActive ?? (teacher.status === 'active'),
       });
     }
@@ -136,6 +138,14 @@ export function TeacherForm({ teacher, onSave, onCancel, isLoading = false }: Te
             onChange={(e) => handleChange('address', e.target.value)}
             error={errors.address}
             placeholder="Alamat lengkap"
+            disabled={isLoading}
+          />
+           <Input
+            label="RFID UID"
+            value={formData.rfidUid || ''}
+            onChange={(e) => handleChange('rfidUid', e.target.value)}
+            error={errors.rfidUid}
+            placeholder="Masukkan RFID UID (contoh: 1A2B3C4D)"
             disabled={isLoading}
           />
 

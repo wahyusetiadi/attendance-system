@@ -1,5 +1,4 @@
 import axios from "axios";
-import { Teacher, CreateTeacherRequest, UpdateTeacherRequest } from "@/types";
 import {
   AttendanceRecord,
   CheckInRequest,
@@ -10,6 +9,7 @@ import {
   AttendanceSummary,
   CheckInOutStatus,
 } from "@/types/attendance";
+import { CreateTeacherRequest, Teacher, UpdateTeacherRequest } from "@/types/teacher";
 
 // Buat instance axios dengan konfigurasi dasar
 const api = axios.create({
@@ -166,12 +166,8 @@ export const attendanceAPI = {
     status?: string;
     sortBy?: string;
     sortOrder?: string;
-  }): Promise<AttendanceListResponse> => {
-    // ✅ Kirim parameter ke backend
+  }): Promise<AttendanceListResponse> => { // ← Return type yang sudah diupdate
     const response = await api.get("/attendance/", { params });
-    // console.log('Request params:', params);
-    // console.log('Response attendance:', response.data);
-
     return response.data;
   },
 

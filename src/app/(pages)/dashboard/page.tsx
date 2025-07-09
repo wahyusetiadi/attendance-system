@@ -14,9 +14,10 @@ import {
   ClockAlert,
   ClockArrowDown
 } from 'lucide-react';
-import { MonthlyChart } from '@/components/charts/MonthlyChart';
+// import { MonthlyChart } from '@/components/charts/MonthlyChart';
 import { AttendancePieChart } from '@/components/charts/AttendancePieChart';
 import { teachersAPI, attendanceAPI, Teacher, AttendanceRecord } from '@/api/api';
+import { MonthlyChart } from '@/components/charts/MonthlyChart/index';
 
 // Interface for dashboard stats
 interface DashboardStats {

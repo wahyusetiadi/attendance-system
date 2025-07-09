@@ -1,11 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import {
-  AttendanceFilter,
-  // AttendanceSummary,
-  AttendanceRecord,
-} from "@/types/attendance";
+import { useState, useEffect } from "react";
+import { AttendanceFilter, AttendanceRecord, AttendancePagination } from "@/types/attendance";
 import { AttendanceTable } from "@/components/attendance/AttendanceTable";
 import { AttendanceFilters } from "@/components/attendance/AttendanceFilters";
 import { AttendanceStats } from "@/components/attendance/AttendanceStats";
@@ -14,16 +10,10 @@ import { ManualEntryModal } from "@/components/attendance/ManualEntryModal";
 import { useAttendance } from "@/hooks/useAttendance";
 import { useTeachers } from "@/hooks/useTeachers";
 import { Button } from "@/components/ui/Button";
-import {
-  Download,
-  Plus,
-  RefreshCw,
-  // Calendar,
-  // Clock,
-  // Users,
-  // BarChart3,
-  AlertCircle,
-} from "lucide-react";
+import { Download, Plus, RefreshCw, AlertCircle } from "lucide-react";
+// 🔥 NEW: Import teachersAPI untuk fetch semua guru
+import { teachersAPI } from "@/api/api";
+import { Teacher } from "@/types/teacher";
 
 export default function AttendancePage() {
   const {
@@ -41,6 +31,10 @@ export default function AttendancePage() {
 
   const { teachers } = useTeachers();
 
+  // 🔥 NEW: State untuk menyimpan semua guru
+  const [allTeachers, setAllTeachers] = useState<Teacher[]>([]);
+  const [teachersLoading, setTeachersLoading] = useState(false);
+
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isManualEntryOpen, setIsManualEntryOpen] = useState(false);
 
@@ -49,19 +43,51 @@ export default function AttendancePage() {
     endDate: new Date().toISOString().split("T")[0],
     sortBy: "date",
     sortOrder: "desc",
+    page: 1,
+    limit: 10,
   };
 
   const [filter, setFilter] = useState<AttendanceFilter>(defaultFilter);
 
-  useEffect(() => {
-    fetchAttendance(filter);
-  }, [filter]);
+  // 🔥 NEW: Function untuk memuat semua guru
+  const fetchAllTeachers = async () => {
+    setTeachersLoading(true);
+    try {
+      console.log('🔍 Fetching ALL teachers for attendance page...');
 
-;
+      // Fetch dengan limit tinggi untuk mendapatkan semua guru
+      const response = await teachersAPI.getAll({ 
+        limit: 1000, // High limit to get all teachers
+        page: 1,
+        isActive: true // Only active teachers
+      });
 
-  // Function to normalize backend data to frontend format
+      if (response.success) {
+        console.log(`✅ Fetched ${response.data.length} teachers for attendance`);
+        setAllTeachers(response.data);
+      } else {
+        console.error('❌ Failed to fetch all teachers:', response.message);
+      }
+    } catch (err: any) {
+      console.error('❌ Error fetching all teachers:', err);
+    } finally {
+      setTeachersLoading(false);
+    }
+  };
+
+  // 🔧 MODIFIED: Update handlePageChange untuk custom pagination
+  const handlePageChange = (page: number) => {
+    const newFilter = { ...filter, page };
+    setFilter(newFilter);
+
+    // Only fetch from API if not single day view
+    const isSingleDay = filter.startDate === filter.endDate;
+    if (!isSingleDay) {
+      fetchAttendance(newFilter);
+    }
+  };
+
   const normalizeAttendanceRecord = (record: any): AttendanceRecord => {
-    // Convert backend status to frontend format
     const normalizeStatus = (status: string): AttendanceRecord["status"] => {
       switch (status?.toUpperCase()) {
         case "HADIR":
@@ -80,7 +106,6 @@ export default function AttendancePage() {
       }
     };
 
-    // Calculate working hours if both checkIn and checkOut exist
     const calculateWorkingHours = (
       checkIn: number | null,
       checkOut: number | null
@@ -90,12 +115,11 @@ export default function AttendancePage() {
       const startTime = new Date(checkIn);
       const endTime = new Date(checkOut);
       const diffMs = endTime.getTime() - startTime.getTime();
-      const diffHours = diffMs / (1000 * 60 * 60); // Convert to hours
+      const diffHours = diffMs / (1000 * 60 * 60);
 
-      return Math.round(diffHours * 100) / 100; // Round to 2 decimal places
+      return Math.round(diffHours * 100) / 100;
     };
 
-    // Format timestamp to HH:MM (if timestamp exists)
     const formatTimestamp = (timestamp: number | null): string | null => {
       if (!timestamp) return null;
 
@@ -107,7 +131,6 @@ export default function AttendancePage() {
       });
     };
 
-    // Format date to YYYY-MM-DD
     const formatDate = (isoString: string): string => {
       return new Date(isoString).toISOString().split("T")[0];
     };
@@ -137,38 +160,37 @@ export default function AttendancePage() {
     };
   };
 
-  // Normalize attendance records from backend
   const normalizedAttendanceRecords: AttendanceRecord[] = attendanceRecords.map(
     normalizeAttendanceRecord
   );
 
-  // Function to get filtered attendance data with teacher completion
+  // 🔥 MODIFIED: Use allTeachers instead of teachers
   const getFilteredAttendanceData = (): AttendanceRecord[] => {
-    // Check if filter is for a single day (start and end date are the same)
     const isSingleDay = filter.startDate === filter.endDate;
 
     if (isSingleDay) {
-      // For single day view, show all teachers with their attendance status
       const filterDate = filter.startDate;
       const dayAttendanceRecords = normalizedAttendanceRecords.filter(
         (record) => record.date === filterDate
       );
 
-      // Create map of attendance records by teacherId
       const attendanceMap = new Map<number, AttendanceRecord>();
       dayAttendanceRecords.forEach((record) => {
         attendanceMap.set(record.teacherId, record);
       });
 
-      // Combine all teachers with their attendance status
-      return teachers
+      console.log('🔍 DEBUG Single Day View:');
+      console.log('- All teachers count:', allTeachers.length);
+      console.log('- Day attendance records count:', dayAttendanceRecords.length);
+
+      // 🔥 Use allTeachers instead of teachers
+      return allTeachers
         .filter((teacher) => teacher.id !== undefined)
         .map((teacher) => {
           const teacherId = teacher.id!;
           const attendanceRecord = attendanceMap.get(teacherId);
 
           if (attendanceRecord) {
-            // Return existing attendance record
             return {
               ...attendanceRecord,
               teacherName: teacher.name,
@@ -181,7 +203,7 @@ export default function AttendancePage() {
               },
             };
           } else {
-            // Create "not recorded" entry for teachers without attendance
+            // 🎯 Create placeholder record for teachers without attendance
             return {
               id: undefined,
               teacherId: teacherId,
@@ -206,19 +228,70 @@ export default function AttendancePage() {
           }
         });
     } else {
-      // For date range view, show only actual attendance records
       return normalizedAttendanceRecords;
     }
   };
 
+  // 🔧 MODIFIED: Custom pagination calculation menggunakan allTeachers
+  const customPagination = (): AttendancePagination | null => {
+    const isSingleDay = filter.startDate === filter.endDate;
+
+    if (isSingleDay) {
+      const totalTeachers = allTeachers.length; // 🔥 Use allTeachers
+      const currentPage = filter.page || 1;
+      const itemsPerPage = filter.limit || 10;
+      const totalPages = Math.ceil(totalTeachers / itemsPerPage);
+
+      // console.log('🔍 Custom Pagination:');
+      // console.log('- Total teachers:', totalTeachers);
+      // console.log('- Current page:', currentPage);
+      // console.log('- Items per page:', itemsPerPage);
+      // console.log('- Total pages:', totalPages);
+
+      return {
+        page: currentPage,
+        limit: itemsPerPage,
+        total: totalTeachers,
+        totalPages: totalPages,
+        hasNext: currentPage < totalPages,
+        hasPrev: currentPage > 1,
+        nextPage: currentPage < totalPages ? currentPage + 1 : null,
+        prevPage: currentPage > 1 ? currentPage - 1 : null,
+      };
+    }
+
+    return pagination; // Use original pagination for date ranges
+  };
+
+  // 🔧 NEW: Get effective pagination
+  const effectivePagination = customPagination();
   const displayData = getFilteredAttendanceData();
 
-  // Get stats based on display data
+  // 🎯 NEW: Apply pagination manually for single day view
+  const getPaginatedData = (): AttendanceRecord[] => {
+    const isSingleDay = filter.startDate === filter.endDate;
+
+    if (isSingleDay && effectivePagination) {
+      const startIndex = (effectivePagination.page - 1) * effectivePagination.limit;
+      const endIndex = startIndex + effectivePagination.limit;
+
+      // console.log('🔍 Pagination slice:');
+      // console.log('- Start index:', startIndex);
+      // console.log('- End index:', endIndex);
+      // console.log('- Sliced data count:', displayData.slice(startIndex, endIndex).length);
+
+      return displayData.slice(startIndex, endIndex);
+    }
+
+    return displayData;
+  };
+
+  const paginatedData = getPaginatedData();
+
   const getStatsFromData = (data: AttendanceRecord[]) => {
     const isSingleDay = filter.startDate === filter.endDate;
 
     if (isSingleDay) {
-      // For single day, calculate based on all teachers
       return {
         total: data.length,
         present: data.filter(
@@ -242,7 +315,6 @@ export default function AttendancePage() {
             : 0,
       };
     } else {
-      // For date range, calculate based on actual records
       return {
         total: data.length,
         present: data.filter(
@@ -254,7 +326,7 @@ export default function AttendancePage() {
             r.status === "SAKIT" ||
             r.status === "IZIN"
         ).length,
-        notRecorded: 0, // No "not recorded" in date range view
+        notRecorded: 0,
         attendanceRate:
           data.length > 0
             ? (data.filter(
@@ -267,11 +339,13 @@ export default function AttendancePage() {
     }
   };
 
+  // 🔧 MODIFIED: Use full displayData for stats calculation
   const statsData = getStatsFromData(displayData);
 
   const handleFilterChange = (newFilter: AttendanceFilter) => {
     console.log("Filter changed:", newFilter);
     setFilter(newFilter);
+    fetchAttendance(newFilter);
   };
 
   const handleUpdateRecord = async (updatedRecord: any) => {
@@ -284,6 +358,15 @@ export default function AttendancePage() {
     await createManualEntry(newRecord);
     setIsManualEntryOpen(false);
   };
+
+  // 🔥 NEW: useEffect untuk fetch semua guru saat component mount
+  useEffect(() => {
+    fetchAllTeachers();
+  }, []);
+
+  useEffect(() => {
+    fetchAttendance(filter);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -335,43 +418,82 @@ export default function AttendancePage() {
         </div>
       )}
 
-      {/* Filters */}
+      {/* 🔥 NEW: Debug info */}
+      {/* {process.env.NODE_ENV === 'development' && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="text-xs text-yellow-800">
+            <strong>Debug Info:</strong> 
+            Teachers loaded: {teachers.length} | 
+            All teachers: {allTeachers.length} | 
+            Display data: {displayData.length} | 
+            Paginated data: {paginatedData.length} |
+            Teachers loading: {teachersLoading ? 'Yes' : 'No'}
+          </div>
+        </div>
+      )} */}
+
+      {/* Filters - 🔥 Use allTeachers for filter dropdown */}
       <AttendanceFilters
         filter={filter}
         onFilterChange={handleFilterChange}
         attendanceData={normalizedAttendanceRecords}
-        teachers={teachers}
+        teachers={allTeachers.length > 0 ? allTeachers : teachers} // Use allTeachers if available
       />
 
       {/* Summary Statistics */}
       {summary && (
         <AttendanceStats
           summary={summary}
-          totalRecords={normalizedAttendanceRecords.length}
+          totalRecords={displayData.length}
         />
       )}
 
-      {/* Attendance Table */}
-      <AttendanceTable
-        data={displayData}
-        onRefresh={refresh}
-        isLoading={isLoading}
-        onUpdateRecord={handleUpdateRecord}
-        onDeleteRecord={deleteRecord}
-      />
-
-      {/* Pagination */}
-      {pagination && (
+      {/* 🔧 MODIFIED: Pagination Info with effective pagination */}
+      {effectivePagination && (
         <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <p className="text-sm text-gray-600 text-center">
-            Showing {displayData.length}{" "}
-            {filter.startDate === filter.endDate ? "teachers" : "records"}
-            {filter.startDate === filter.endDate
-              ? ` (${filter.startDate})`
-              : ` (${filter.startDate} - ${filter.endDate})`}
-          </p>
+          <div className="flex justify-between items-center">
+            <p className="text-sm text-gray-600">
+              Showing {((effectivePagination.page - 1) * effectivePagination.limit) + 1} to{" "}
+              {Math.min(effectivePagination.page * effectivePagination.limit, effectivePagination.total)}{" "}
+              of {effectivePagination.total} records
+            </p>
+            <div className="flex items-center space-x-2">
+              <label className="text-sm text-gray-600">Items per page:</label>
+              <select
+                value={filter.limit || 10}
+                onChange={(e) => {
+                  const newLimit = parseInt(e.target.value);
+                  const newFilter = { ...filter, limit: newLimit, page: 1 };
+                  setFilter(newFilter);
+
+                  // Only fetch from API if not single day view
+                  const isSingleDay = filter.startDate === filter.endDate;
+                  if (!isSingleDay) {
+                    fetchAttendance(newFilter);
+                  }
+                }}
+                className="border border-gray-300 rounded px-2 py-1 text-sm"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </div>
         </div>
       )}
+
+      {/* 🔧 MODIFIED: Attendance Table with paginated data and effective pagination */}
+      <AttendanceTable
+        data={paginatedData}
+        onRefresh={refresh}
+        isLoading={isLoading || teachersLoading}
+        onUpdateRecord={handleUpdateRecord}
+        onDeleteRecord={deleteRecord}
+        pagination={effectivePagination}
+        onPageChange={handlePageChange}
+      />
 
       {/* Modals */}
       <ExportModal
@@ -385,7 +507,7 @@ export default function AttendancePage() {
         isOpen={isManualEntryOpen}
         onClose={() => setIsManualEntryOpen(false)}
         onSave={handleSaveManualEntry}
-        teachers={teachers}
+        teachers={allTeachers.length > 0 ? allTeachers : teachers} // Use allTeachers if available
         existingRecords={normalizedAttendanceRecords}
       />
     </div>
