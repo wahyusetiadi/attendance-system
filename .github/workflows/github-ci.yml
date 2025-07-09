@@ -25,16 +25,19 @@ jobs:
           echo "PORT_EXPOSE_APPS=3501" >> $GITHUB_ENV
           echo "NODE_ENV=development" >> $GITHUB_ENV
           echo "IMAGE_TAG=dev" >> $GITHUB_ENV
+          echo "NEXT_PUBLIC_API_URL=https://development-api.edunusa.co.id" >> $GITHUB_ENV
         elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
           echo "DOMAIN_APPS=staging-paud-kanzul-khairat-presensi.edunusa.co.id" >> $GITHUB_ENV
           echo "PORT_EXPOSE_APPS=3503" >> $GITHUB_ENV
           echo "NODE_ENV=production" >> $GITHUB_ENV
           echo "IMAGE_TAG=staging" >> $GITHUB_ENV
+          echo "NEXT_PUBLIC_API_URL=https://staging-api.edunusa.co.id" >> $GITHUB_ENV
         elif [[ "${{ github.ref }}" == "refs/heads/production" ]]; then
           echo "DOMAIN_APPS=paud-kanzul-khairat-presensi.edunusa.co.id" >> $GITHUB_ENV
           echo "PORT_EXPOSE_APPS=3505" >> $GITHUB_ENV
           echo "NODE_ENV=production" >> $GITHUB_ENV
           echo "IMAGE_TAG=latest" >> $GITHUB_ENV
+          echo "NEXT_PUBLIC_API_URL=https://api.edunusa.co.id" >> $GITHUB_ENV
         fi
         
         # Set common variables
@@ -49,6 +52,7 @@ jobs:
         echo "Environment: $NODE_ENV"
         echo "Domain: $DOMAIN_APPS"
         echo "Port: $PORT_EXPOSE_APPS"
+        echo "API URL: $NEXT_PUBLIC_API_URL"
         echo "Container: $CONTAINER_NAME"
     
     - name: Setup Node.js
@@ -71,9 +75,11 @@ jobs:
       run: |
         echo "Building application..."
         echo "NODE_ENV: $NODE_ENV"
+        echo "NEXT_PUBLIC_API_URL: $NEXT_PUBLIC_API_URL"
         npm run build
       env:
         NODE_ENV: ${{ env.NODE_ENV }}
+        NEXT_PUBLIC_API_URL: ${{ env.NEXT_PUBLIC_API_URL }}
         NEXT_TELEMETRY_DISABLED: 1
     
     - name: Set up Docker Buildx
@@ -89,6 +95,7 @@ jobs:
         echo "Building and pushing Docker image..."
         docker build \
           --build-arg NODE_ENV=$NODE_ENV \
+          --build-arg NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
           --build-arg NEXT_TELEMETRY_DISABLED=1 \
           -t $REGISTRY/$IMAGE_NAME:$IMAGE_TAG \
           -t $REGISTRY/$IMAGE_NAME:$IMAGE_TAG-$SHORT_SHA \
@@ -113,6 +120,7 @@ jobs:
           -p $PORT_EXPOSE_APPS:$PORT_CONTAINER \
           -e NODE_ENV=$NODE_ENV \
           -e PORT=$PORT_CONTAINER \
+          -e NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
           --label "traefik.enable=true" \
           --label "traefik.http.routers.$CONTAINER_NAME.rule=Host(\`$DOMAIN_APPS\`)" \
           --label "traefik.http.services.$CONTAINER_NAME.loadbalancer.server.port=$PORT_CONTAINER" \
@@ -151,6 +159,7 @@ jobs:
         echo "Environment: $NODE_ENV"
         echo "Domain: $DOMAIN_APPS"
         echo "Port: $PORT_EXPOSE_APPS"
+        echo "API URL: $NEXT_PUBLIC_API_URL"
         echo "Container: $CONTAINER_NAME"
         echo "Image: $REGISTRY/$IMAGE_NAME:$IMAGE_TAG"
         echo "Status: Success"
@@ -179,7 +188,8 @@ jobs:
         echo "Testing build..."
         npm run build
       env:
-        NODE_ENV: production
+        NODE_ENV: ${{env.NODE_ENV}}
+        NEXT_PUBLIC_API_URL: ${{env.NEXT_PUBLIC_API_URL}}
         NEXT_TELEMETRY_DISABLED: 1
     
     - name: PR validation complete
