@@ -23,7 +23,7 @@ jobs:
         run: npm install
 
   build:
-    name: Build the project
+    # name: Build the project
     runs-on: [self-hosted, itn-edunusa-paud-kanzul-khairat-presensi-fe]
 
     needs: install
