@@ -1,3 +1,4 @@
+// Teacher interface yang sesuai dengan Prisma model
 export interface Teacher {
   id?: number;
   nip?: string;
@@ -6,9 +7,15 @@ export interface Teacher {
   phone?: string;
   address?: string;
   subject?: string;
+  rfidUid?: string;
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
+  // Legacy fields untuk backward compatibility
+  grade?: string;
+  status?: 'active' | 'inactive';
+  joinDate?: string;
+  avatar?: string;
 }
 
 export interface CreateTeacherRequest {
@@ -18,6 +25,7 @@ export interface CreateTeacherRequest {
   phone?: string;
   address?: string;
   subject?: string;
+  rfidUid?: string;
   isActive?: boolean;
 }
 
@@ -28,20 +36,27 @@ export interface UpdateTeacherRequest {
   phone?: string;
   address?: string;
   subject?: string;
+  rfidUid?: string;
   isActive?: boolean;
+}
+
+// Standarisasi interface Pagination sesuai dengan response backend
+export interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+  nextPage?: number | null;
+  prevPage?: number | null;
 }
 
 export interface TeachersResponse {
   success: boolean;
   data: Teacher[];
   message?: string;
-  total?: number;
-  pagination?: {
-    page: number;
-    limit: number;
-    totalPages: number;
-    totalItems: number;
-  };
+  pagination?: Pagination;
 }
 
 export interface TeacherResponse {

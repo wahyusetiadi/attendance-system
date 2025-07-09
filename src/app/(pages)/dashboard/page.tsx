@@ -14,9 +14,10 @@ import {
   ClockAlert,
   ClockArrowDown
 } from 'lucide-react';
-import { MonthlyChart } from '@/components/charts/MonthlyChart';
+// import { MonthlyChart } from '@/components/charts/MonthlyChart';
 import { AttendancePieChart } from '@/components/charts/AttendancePieChart';
 import { teachersAPI, attendanceAPI, Teacher, AttendanceRecord } from '@/api/api';
+import { MonthlyChart } from '@/components/charts/MonthlyChart/index';
 
 // Interface for dashboard stats
 interface DashboardStats {
@@ -37,7 +38,7 @@ interface LoadingSpinnerProps {
 const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 'sm' }) => {
   const sizeClasses = {
     sm: 'w-4 h-4',
-    md: 'w-6 w-6',
+    md: 'w-6 h-6',
     lg: 'w-8 h-8'
   };
 
@@ -45,41 +46,6 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 'sm' }) => {
     <div className={`${sizeClasses[size]} animate-spin rounded-full border-2 border-gray-300 border-t-blue-600`}></div>
   );
 };
-
-// const recentActivities = [
-//   {
-//     id: 1,
-//     type: 'add',
-//     message: 'Guru baru ditambahkan: Budi Santoso',
-//     time: '2 jam yang lalu',
-//     icon: CheckCircle,
-//     color: 'text-green-500'
-//   },
-//   {
-//     id: 2,
-//     type: 'update',
-//     message: 'Data guru diperbarui: Siti Rahayu',
-//     time: '5 jam yang lalu',
-//     icon: AlertCircle,
-//     color: 'text-blue-500'
-//   },
-//   {
-//     id: 3,
-//     type: 'add',
-//     message: 'Mata pelajaran baru: Fisika Lanjutan',
-//     time: '1 hari yang lalu',
-//     icon: CheckCircle,
-//     color: 'text-green-500'
-//   },
-//   {
-//     id: 4,
-//     type: 'attendance',
-//     message: 'Kehadiran guru hari ini: 94%',
-//     time: '2 hari yang lalu',
-//     icon: AlertCircle,
-//     color: 'text-orange-500'
-//   },
-// ];
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({
@@ -286,74 +252,81 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6 max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex justify-between md:items-center md:flex-row flex-col">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-2">
-            Selamat datang kembali! Berikut adalah ringkasan sistem hari ini.
-          </p>
-          <hr className='my-2 md:hidden' />
-          {stats.error && (
-            <div className="mt-2 flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-red-500" />
-              <span className="text-sm text-red-600">{stats.error}</span>
+      <div className="flex flex-col space-y-3 sm:space-y-4">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start">
+          <div className="flex-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">Dashboard</h1>
+            <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">
+              Selamat datang kembali! Berikut ringkasan sistem hari ini.
+            </p>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-3 sm:mt-0">
+            <div className="text-left sm:text-right">
+              <div className="text-xs sm:text-sm text-gray-500">
+                {new Date().toLocaleDateString('id-ID', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </div>
+              <div className="text-base sm:text-lg font-semibold text-gray-900">
+                {new Date().toLocaleTimeString('id-ID', { 
+                  hour: '2-digit', 
+                  minute: '2-digit' 
+                })}
+              </div>
+            </div>
+            
+            {!stats.loading && (
               <button 
                 onClick={fetchDashboardStats}
-                className="text-sm text-red-600 underline hover:no-underline"
+                className="text-xs text-blue-600 hover:text-blue-700 px-2 py-1 rounded border border-blue-200 hover:border-blue-300 transition-colors shrink-0"
               >
-                Coba lagi
+                Refresh
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-        <div className="md:text-right text-start">
-          <div className="text-sm text-gray-500">
-            {new Date().toLocaleDateString('id-ID', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}
-          </div>
-          <div className="text-lg font-semibold text-gray-900">
-            {new Date().toLocaleTimeString('id-ID', { 
-              hour: '2-digit', 
-              minute: '2-digit' 
-            })}
-          </div>
-          {!stats.loading && (
+        
+        {/* Error message */}
+        {stats.error && (
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 p-3 bg-red-50 rounded-lg border border-red-200">
+            <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5 sm:mt-0" />
+            <span className="text-sm text-red-600 flex-1">{stats.error}</span>
             <button 
               onClick={fetchDashboardStats}
-              className="text-xs text-blue-600 hover:text-blue-700 mt-1"
+              className="text-sm text-red-600 underline hover:no-underline shrink-0"
             >
-              Refresh data
+              Coba lagi
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
         {statsCards.map((stat, index) => (
-          <div key={index} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+          <div key={index} className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-500 mb-1">{stat.title}</p>
-                <div className="text-3xl font-bold text-gray-900 mb-2 flex items-center">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-500 mb-1 truncate">{stat.title}</p>
+                <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2 flex items-center">
                   {stat.value}
                 </div>
                 {stat.subtitle && (
                   <div className="flex items-center">
-                    <span className="text-xs font-medium text-gray-500">
+                    <span className="text-xs font-medium text-gray-500 truncate">
                       {stat.subtitle}
                     </span>
                   </div>
                 )}
               </div>
-              <div className={`p-3 rounded-xl ${stat.color} shadow-lg`}>
-                <stat.icon className="h-6 w-6 text-white" />
+              <div className={`p-2 sm:p-3 rounded-lg sm:rounded-xl ${stat.color} shadow-lg shrink-0 ml-2`}>
+                <stat.icon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
               </div>
             </div>
           </div>
@@ -362,17 +335,17 @@ export default function DashboardPage() {
 
       {/* Real-time Status Summary */}
       {!stats.loading && !stats.error && (
-        <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-xl p-6 border border-blue-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Status Kehadiran Hari Ini</h3>
+        <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-lg sm:rounded-xl p-4 sm:p-6 border border-blue-200">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+            <div className="flex-1">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900">Status Kehadiran Hari Ini</h3>
               <p className="text-sm text-gray-600 mt-1">
                 {stats.todayPresent + stats.todayLate} dari {stats.totalTeachers} guru sudah hadir
               </p>
             </div>
-            <div className="text-right">
-              <div className="text-3xl font-bold text-green-600">{stats.attendanceRate}%</div>
-              <div className="text-sm text-gray-500">Tingkat kehadiran</div>
+            <div className="text-left sm:text-right">
+              <div className="text-2xl sm:text-3xl font-bold text-green-600">{stats.attendanceRate}%</div>
+              <div className="text-xs sm:text-sm text-gray-500">Tingkat kehadiran</div>
             </div>
           </div>
 
@@ -393,45 +366,49 @@ export default function DashboardPage() {
       )}
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Monthly Statistics */}
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-gray-900">
+        <div className="lg:col-span-2 bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-2">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900">
               Statistik Bulanan 2024
             </h2>
             <div className="flex items-center space-x-2">
-              <TrendingUp className="h-5 w-5 text-green-500" />
-              <span className="text-sm text-green-600 font-medium">
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-green-500" />
+              <span className="text-xs sm:text-sm text-green-600 font-medium">
                 Trend positif
               </span>
             </div>
           </div>
 
-          <MonthlyChart />
+          <div className="w-full overflow-x-auto">
+            <MonthlyChart />
+          </div>
         </div>
 
         {/* Weekly Attendance */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <AttendancePieChart />
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+          <div className="w-full">
+            <AttendancePieChart />
+          </div>
 
           {/* Summary */}
-          <div className="mt-6 pt-4 border-t border-gray-200">
-            <h4 className="font-semibold text-gray-900 mb-3">Ringkasan Hari Ini</h4>
+          <div className="mt-4 sm:mt-6 pt-4 border-t border-gray-200">
+            <h4 className="text-sm sm:text-base font-semibold text-gray-900 mb-3">Ringkasan Hari Ini</h4>
             <div className="space-y-2">
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs sm:text-sm">
                 <span className="text-gray-600">Tingkat kehadiran:</span>
                 <span className="font-medium text-green-600">{stats.attendanceRate}%</span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs sm:text-sm">
                 <span className="text-gray-600">Total terlambat:</span>
                 <span className="font-medium text-yellow-600">{stats.todayLate} guru</span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs sm:text-sm">
                 <span className="text-gray-600">Tidak hadir:</span>
                 <span className="font-medium text-red-600">{stats.todayAbsent} guru</span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs sm:text-sm">
                 <span className="text-gray-600">Belum absen:</span>
                 <span className="font-medium text-orange-600">{stats.notCheckedIn} guru</span>
               </div>

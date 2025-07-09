@@ -35,6 +35,18 @@ export interface CheckOutRequest {
   notes?: string;
 }
 
+// Standardize pagination interface untuk attendance (sama dengan teachers)
+export interface AttendancePagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+  nextPage?: number | null;
+  prevPage?: number | null;
+}
+
 export interface AttendanceResponse {
   success: boolean;
   data: AttendanceRecord;
@@ -81,5 +93,29 @@ export interface CheckInOutStatus {
   canCheckIn: boolean;
   canCheckOut: boolean;
   todayAttendance?: AttendanceRecord;
+  message?: string;
+}
+
+// src/types/attendance.ts
+export interface AttendanceData {
+  id: string;
+  employeeName: string;
+  type: 'check-in' | 'check-out';
+  timestamp: Date;
+  location?: string;
+}
+
+export interface AttendanceNotification {
+  id: string;
+  employeeName: string;
+  type: 'check-in' | 'check-out';
+  time: string;
+  date: string;
+  location?: string;
+}
+
+export interface AttendanceApiResponse {
+  success: boolean;
+  data: AttendanceData[];
   message?: string;
 }

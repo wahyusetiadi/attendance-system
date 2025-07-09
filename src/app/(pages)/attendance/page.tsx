@@ -1,11 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import {
-  AttendanceFilter,
-  // AttendanceSummary,
-  AttendanceRecord,
-} from "@/types/attendance";
+import { useState, useEffect } from "react";
+import { AttendanceFilter, AttendanceRecord, AttendancePagination } from "@/types/attendance";
 import { AttendanceTable } from "@/components/attendance/AttendanceTable";
 import { AttendanceFilters } from "@/components/attendance/AttendanceFilters";
 import { AttendanceStats } from "@/components/attendance/AttendanceStats";
@@ -14,16 +10,10 @@ import { ManualEntryModal } from "@/components/attendance/ManualEntryModal";
 import { useAttendance } from "@/hooks/useAttendance";
 import { useTeachers } from "@/hooks/useTeachers";
 import { Button } from "@/components/ui/Button";
-import {
-  Download,
-  Plus,
-  RefreshCw,
-  // Calendar,
-  // Clock,
-  // Users,
-  // BarChart3,
-  AlertCircle,
-} from "lucide-react";
+import { Download, Plus, RefreshCw, AlertCircle, ChevronDown } from "lucide-react";
+// 🔥 NEW: Import teachersAPI untuk fetch semua guru
+import { teachersAPI } from "@/api/api";
+import { Teacher } from "@/types/teacher";
 
 export default function AttendancePage() {
   const {
@@ -41,27 +31,66 @@ export default function AttendancePage() {
 
   const { teachers } = useTeachers();
 
+  // 🔥 NEW: State untuk menyimpan semua guru
+  const [allTeachers, setAllTeachers] = useState<Teacher[]>([]);
+  const [teachersLoading, setTeachersLoading] = useState(false);
+
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isManualEntryOpen, setIsManualEntryOpen] = useState(false);
+
+  // Mobile menu state
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const defaultFilter: AttendanceFilter = {
     startDate: new Date().toISOString().split("T")[0],
     endDate: new Date().toISOString().split("T")[0],
     sortBy: "date",
     sortOrder: "desc",
+    page: 1,
+    limit: 10,
   };
 
   const [filter, setFilter] = useState<AttendanceFilter>(defaultFilter);
 
-  useEffect(() => {
-    fetchAttendance(filter);
-  }, [filter]);
+  // 🔥 NEW: Function untuk memuat semua guru
+  const fetchAllTeachers = async () => {
+    setTeachersLoading(true);
+    try {
+      console.log('🔍 Fetching ALL teachers for attendance page...');
 
-;
+      // Fetch dengan limit tinggi untuk mendapatkan semua guru
+      const response = await teachersAPI.getAll({ 
+        limit: 1000, // High limit to get all teachers
+        page: 1,
+        isActive: true // Only active teachers
+      });
 
-  // Function to normalize backend data to frontend format
+      if (response.success) {
+        console.log(`✅ Fetched ${response.data.length} teachers for attendance`);
+        setAllTeachers(response.data);
+      } else {
+        console.error('❌ Failed to fetch all teachers:', response.message);
+      }
+    } catch (err: any) {
+      console.error('❌ Error fetching all teachers:', err);
+    } finally {
+      setTeachersLoading(false);
+    }
+  };
+
+  // 🔧 MODIFIED: Update handlePageChange untuk custom pagination
+  const handlePageChange = (page: number) => {
+    const newFilter = { ...filter, page };
+    setFilter(newFilter);
+
+    // Only fetch from API if not single day view
+    const isSingleDay = filter.startDate === filter.endDate;
+    if (!isSingleDay) {
+      fetchAttendance(newFilter);
+    }
+  };
+
   const normalizeAttendanceRecord = (record: any): AttendanceRecord => {
-    // Convert backend status to frontend format
     const normalizeStatus = (status: string): AttendanceRecord["status"] => {
       switch (status?.toUpperCase()) {
         case "HADIR":
@@ -80,7 +109,6 @@ export default function AttendancePage() {
       }
     };
 
-    // Calculate working hours if both checkIn and checkOut exist
     const calculateWorkingHours = (
       checkIn: number | null,
       checkOut: number | null
@@ -90,12 +118,11 @@ export default function AttendancePage() {
       const startTime = new Date(checkIn);
       const endTime = new Date(checkOut);
       const diffMs = endTime.getTime() - startTime.getTime();
-      const diffHours = diffMs / (1000 * 60 * 60); // Convert to hours
+      const diffHours = diffMs / (1000 * 60 * 60);
 
-      return Math.round(diffHours * 100) / 100; // Round to 2 decimal places
+      return Math.round(diffHours * 100) / 100;
     };
 
-    // Format timestamp to HH:MM (if timestamp exists)
     const formatTimestamp = (timestamp: number | null): string | null => {
       if (!timestamp) return null;
 
@@ -107,7 +134,6 @@ export default function AttendancePage() {
       });
     };
 
-    // Format date to YYYY-MM-DD
     const formatDate = (isoString: string): string => {
       return new Date(isoString).toISOString().split("T")[0];
     };
@@ -137,38 +163,37 @@ export default function AttendancePage() {
     };
   };
 
-  // Normalize attendance records from backend
   const normalizedAttendanceRecords: AttendanceRecord[] = attendanceRecords.map(
     normalizeAttendanceRecord
   );
 
-  // Function to get filtered attendance data with teacher completion
+  // 🔥 MODIFIED: Use allTeachers instead of teachers
   const getFilteredAttendanceData = (): AttendanceRecord[] => {
-    // Check if filter is for a single day (start and end date are the same)
     const isSingleDay = filter.startDate === filter.endDate;
 
     if (isSingleDay) {
-      // For single day view, show all teachers with their attendance status
       const filterDate = filter.startDate;
       const dayAttendanceRecords = normalizedAttendanceRecords.filter(
         (record) => record.date === filterDate
       );
 
-      // Create map of attendance records by teacherId
       const attendanceMap = new Map<number, AttendanceRecord>();
       dayAttendanceRecords.forEach((record) => {
         attendanceMap.set(record.teacherId, record);
       });
 
-      // Combine all teachers with their attendance status
-      return teachers
+      console.log('🔍 DEBUG Single Day View:');
+      console.log('- All teachers count:', allTeachers.length);
+      console.log('- Day attendance records count:', dayAttendanceRecords.length);
+
+      // 🔥 Use allTeachers instead of teachers
+      return allTeachers
         .filter((teacher) => teacher.id !== undefined)
         .map((teacher) => {
           const teacherId = teacher.id!;
           const attendanceRecord = attendanceMap.get(teacherId);
 
           if (attendanceRecord) {
-            // Return existing attendance record
             return {
               ...attendanceRecord,
               teacherName: teacher.name,
@@ -181,7 +206,7 @@ export default function AttendancePage() {
               },
             };
           } else {
-            // Create "not recorded" entry for teachers without attendance
+            // 🎯 Create placeholder record for teachers without attendance
             return {
               id: undefined,
               teacherId: teacherId,
@@ -206,19 +231,59 @@ export default function AttendancePage() {
           }
         });
     } else {
-      // For date range view, show only actual attendance records
       return normalizedAttendanceRecords;
     }
   };
 
+  // 🔧 MODIFIED: Custom pagination calculation menggunakan allTeachers
+  const customPagination = (): AttendancePagination | null => {
+    const isSingleDay = filter.startDate === filter.endDate;
+
+    if (isSingleDay) {
+      const totalTeachers = allTeachers.length; // 🔥 Use allTeachers
+      const currentPage = filter.page || 1;
+      const itemsPerPage = filter.limit || 10;
+      const totalPages = Math.ceil(totalTeachers / itemsPerPage);
+
+      return {
+        page: currentPage,
+        limit: itemsPerPage,
+        total: totalTeachers,
+        totalPages: totalPages,
+        hasNext: currentPage < totalPages,
+        hasPrev: currentPage > 1,
+        nextPage: currentPage < totalPages ? currentPage + 1 : null,
+        prevPage: currentPage > 1 ? currentPage - 1 : null,
+      };
+    }
+
+    return pagination; // Use original pagination for date ranges
+  };
+
+  // 🔧 NEW: Get effective pagination
+  const effectivePagination = customPagination();
   const displayData = getFilteredAttendanceData();
 
-  // Get stats based on display data
+  // 🎯 NEW: Apply pagination manually for single day view
+  const getPaginatedData = (): AttendanceRecord[] => {
+    const isSingleDay = filter.startDate === filter.endDate;
+
+    if (isSingleDay && effectivePagination) {
+      const startIndex = (effectivePagination.page - 1) * effectivePagination.limit;
+      const endIndex = startIndex + effectivePagination.limit;
+
+      return displayData.slice(startIndex, endIndex);
+    }
+
+    return displayData;
+  };
+
+  const paginatedData = getPaginatedData();
+
   const getStatsFromData = (data: AttendanceRecord[]) => {
     const isSingleDay = filter.startDate === filter.endDate;
 
     if (isSingleDay) {
-      // For single day, calculate based on all teachers
       return {
         total: data.length,
         present: data.filter(
@@ -242,7 +307,6 @@ export default function AttendancePage() {
             : 0,
       };
     } else {
-      // For date range, calculate based on actual records
       return {
         total: data.length,
         present: data.filter(
@@ -254,7 +318,7 @@ export default function AttendancePage() {
             r.status === "SAKIT" ||
             r.status === "IZIN"
         ).length,
-        notRecorded: 0, // No "not recorded" in date range view
+        notRecorded: 0,
         attendanceRate:
           data.length > 0
             ? (data.filter(
@@ -267,11 +331,13 @@ export default function AttendancePage() {
     }
   };
 
+  // 🔧 MODIFIED: Use full displayData for stats calculation
   const statsData = getStatsFromData(displayData);
 
   const handleFilterChange = (newFilter: AttendanceFilter) => {
     console.log("Filter changed:", newFilter);
     setFilter(newFilter);
+    fetchAttendance(newFilter);
   };
 
   const handleUpdateRecord = async (updatedRecord: any) => {
@@ -285,49 +351,123 @@ export default function AttendancePage() {
     setIsManualEntryOpen(false);
   };
 
+  // 🔥 NEW: useEffect untuk fetch semua guru saat component mount
+  useEffect(() => {
+    fetchAllTeachers();
+  }, []);
+
+  useEffect(() => {
+    fetchAttendance(filter);
+  }, []);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6 max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex justify-between items-center md:flex-row flex-col">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Absensi Guru</h1>
-          <p className="text-gray-600 mt-2">
-            Kelola dan pantau kehadiran guru secara real-time
-          </p>
+      <div className="flex flex-col space-y-3 sm:space-y-4">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start">
+          <div className="flex-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">Absensi Guru</h1>
+            <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">
+              Kelola dan pantau kehadiran guru secara real-time
+            </p>
+          </div>
+          
+          {/* Desktop Action Buttons */}
+          <div className="hidden sm:flex space-x-3 mt-3 sm:mt-0">
+            <Button variant="outline" onClick={refresh} disabled={isLoading} size="sm">
+              <RefreshCw
+                className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsExportModalOpen(true)}
+              disabled={attendanceRecords.length === 0}
+              size="sm"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+            <Button onClick={() => setIsManualEntryOpen(true)} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Manual Entry
+            </Button>
+          </div>
+
+          {/* Mobile Action Menu */}
+          <div className="sm:hidden mt-3">
+            <div className="relative">
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="w-full flex items-center justify-between px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <span className="text-sm font-medium">Actions</span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${isMobileMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isMobileMenuOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                  <button
+                    onClick={() => {
+                      refresh();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    disabled={isLoading}
+                    className="w-full flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-3 ${isLoading ? "animate-spin" : ""}`} />
+                    Refresh
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsExportModalOpen(true);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    disabled={attendanceRecords.length === 0}
+                    className="w-full flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <Download className="h-4 w-4 mr-3" />
+                    Export
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsManualEntryOpen(true);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-b-lg"
+                  >
+                    <Plus className="h-4 w-4 mr-3" />
+                    Manual Entry
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-        <div className="flex space-x-3">
-          <Button variant="outline" onClick={refresh} disabled={isLoading}>
-            <RefreshCw
-              className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
-            />
-            Refresh
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setIsExportModalOpen(true)}
-            disabled={attendanceRecords.length === 0}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-          <Button onClick={() => setIsManualEntryOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Manual Entry
-          </Button>
-        </div>
+
+        {/* Close mobile menu on outside click */}
+        {isMobileMenuOpen && (
+          <div 
+            className="fixed inset-0 z-5 sm:hidden" 
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        )}
       </div>
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-            <p className="text-red-700">{error}</p>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+            <div className="flex items-center gap-2 flex-1">
+              <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 shrink-0" />
+              <p className="text-sm sm:text-base text-red-700">{error}</p>
+            </div>
             <Button
               variant="outline"
               size="sm"
               onClick={refresh}
-              className="ml-auto"
+              className="shrink-0 mt-2 sm:mt-0"
             >
               Retry
             </Button>
@@ -335,43 +475,76 @@ export default function AttendancePage() {
         </div>
       )}
 
-      {/* Filters */}
-      <AttendanceFilters
-        filter={filter}
-        onFilterChange={handleFilterChange}
-        attendanceData={normalizedAttendanceRecords}
-        teachers={teachers}
-      />
+      {/* Filters - 🔥 Use allTeachers for filter dropdown */}
+      <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+        <AttendanceFilters
+          filter={filter}
+          onFilterChange={handleFilterChange}
+          attendanceData={normalizedAttendanceRecords}
+          teachers={allTeachers.length > 0 ? allTeachers : teachers} // Use allTeachers if available
+        />
+      </div>
 
       {/* Summary Statistics */}
       {summary && (
-        <AttendanceStats
-          summary={summary}
-          totalRecords={normalizedAttendanceRecords.length}
-        />
-      )}
-
-      {/* Attendance Table */}
-      <AttendanceTable
-        data={displayData}
-        onRefresh={refresh}
-        isLoading={isLoading}
-        onUpdateRecord={handleUpdateRecord}
-        onDeleteRecord={deleteRecord}
-      />
-
-      {/* Pagination */}
-      {pagination && (
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <p className="text-sm text-gray-600 text-center">
-            Showing {displayData.length}{" "}
-            {filter.startDate === filter.endDate ? "teachers" : "records"}
-            {filter.startDate === filter.endDate
-              ? ` (${filter.startDate})`
-              : ` (${filter.startDate} - ${filter.endDate})`}
-          </p>
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+          <AttendanceStats
+            summary={summary}
+            totalRecords={displayData.length}
+          />
         </div>
       )}
+
+      {/* 🔧 MODIFIED: Pagination Info with effective pagination */}
+      {effectivePagination && (
+        <div className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+            <p className="text-xs sm:text-sm text-gray-600">
+              Showing {((effectivePagination.page - 1) * effectivePagination.limit) + 1} to{" "}
+              {Math.min(effectivePagination.page * effectivePagination.limit, effectivePagination.total)}{" "}
+              of {effectivePagination.total} records
+            </p>
+            <div className="flex items-center space-x-2">
+              <label className="text-xs sm:text-sm text-gray-600 shrink-0">Items per page:</label>
+              <select
+                value={filter.limit || 10}
+                onChange={(e) => {
+                  const newLimit = parseInt(e.target.value);
+                  const newFilter = { ...filter, limit: newLimit, page: 1 };
+                  setFilter(newFilter);
+
+                  // Only fetch from API if not single day view
+                  const isSingleDay = filter.startDate === filter.endDate;
+                  if (!isSingleDay) {
+                    fetchAttendance(newFilter);
+                  }
+                }}
+                className="border border-gray-300 rounded px-2 py-1 text-xs sm:text-sm min-w-0"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🔧 MODIFIED: Attendance Table with paginated data and effective pagination */}
+      <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <AttendanceTable
+            data={paginatedData}
+            onRefresh={refresh}
+            isLoading={isLoading || teachersLoading}
+            onUpdateRecord={handleUpdateRecord}
+            onDeleteRecord={deleteRecord}
+            pagination={effectivePagination}
+            onPageChange={handlePageChange}
+          />
+        </div>
+      </div>
 
       {/* Modals */}
       <ExportModal
@@ -385,7 +558,7 @@ export default function AttendancePage() {
         isOpen={isManualEntryOpen}
         onClose={() => setIsManualEntryOpen(false)}
         onSave={handleSaveManualEntry}
-        teachers={teachers}
+        teachers={allTeachers.length > 0 ? allTeachers : teachers} // Use allTeachers if available
         existingRecords={normalizedAttendanceRecords}
       />
     </div>

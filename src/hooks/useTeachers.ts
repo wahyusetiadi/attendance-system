@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { teachersAPI } from '@/api/api';
-import { Teacher, CreateTeacherRequest, UpdateTeacherRequest } from '@/types';
+import { CreateTeacherRequest, Pagination, Teacher, UpdateTeacherRequest } from '@/types/teacher';
 
 interface UseTeachersParams {
   page?: number;
@@ -15,12 +15,7 @@ interface UseTeachersReturn {
   teachers: Teacher[];
   isLoading: boolean;
   error: string | null;
-  pagination: {
-    page: number;
-    limit: number;
-    totalPages: number;
-    totalItems: number;
-  } | null;
+  pagination: Pagination | null;
   fetchTeachers: (params?: UseTeachersParams) => Promise<void>;
   createTeacher: (data: CreateTeacherRequest) => Promise<Teacher | null>;
   updateTeacher: (id: number, data: UpdateTeacherRequest) => Promise<Teacher | null>;
@@ -33,12 +28,7 @@ export const useTeachers = (initialParams?: UseTeachersParams): UseTeachersRetur
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pagination, setPagination] = useState<{
-    page: number;
-    limit: number;
-    totalPages: number;
-    totalItems: number;
-  } | null>(null);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
   const [currentParams, setCurrentParams] = useState<UseTeachersParams>(initialParams || {});
 
   const fetchTeachers = async (params?: UseTeachersParams) => {
@@ -54,7 +44,20 @@ export const useTeachers = (initialParams?: UseTeachersParams): UseTeachersRetur
       if (response.success) {
         setTeachers(response.data);
         if (response.pagination) {
-          setPagination(response.pagination);
+          // Map backend pagination response to frontend Pagination interface
+          // Backend response structure dari contoh Anda:
+          const backendPagination = response.pagination as any;
+
+          setPagination({
+            page: backendPagination.page,
+            limit: backendPagination.limit,
+            total: backendPagination.total, // Backend menggunakan "total"
+            totalPages: backendPagination.totalPages,
+            hasNext: backendPagination.hasNext,
+            hasPrev: backendPagination.hasPrev,
+            nextPage: backendPagination.nextPage || null,
+            prevPage: backendPagination.prevPage || null
+          });
         }
       } else {
         setError(response.message || 'Failed to fetch teachers');

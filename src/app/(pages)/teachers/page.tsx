@@ -1,26 +1,88 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { TeacherForm } from '@/features/teachers/components/TeacherForm';
-import { ImportModal } from '@/features/teachers/components/ImportModal';
-import { ExportModal } from '@/features/teachers/components/ExportModal';
-import { TeacherList } from '@/features/teachers/components/TeacherList';
-import { Teacher, CreateTeacherRequest } from '@/types';
-import { useTeachers } from '@/hooks/useTeachers';
-import { Button } from '@/components/ui/Button';
-import { 
-  Plus, 
-  Download, 
-  // Upload,
+import { useState } from "react";
+import { TeacherForm } from "@/features/teachers/components/TeacherForm";
+import { ImportModal } from "@/features/teachers/components/ImportModal";
+import { ExportModal } from "@/features/teachers/components/ExportModal";
+import { TeacherList } from "@/features/teachers/components/TeacherList";
+import { useTeachers } from "@/hooks/useTeachers";
+import { Button } from "@/components/ui/Button";
+import {
+  Plus,
+  Download,
   RefreshCw,
   Users,
   UserCheck,
   UserX,
-  // BookOpen,
-  AlertCircle
-} from 'lucide-react';
+  AlertCircle,
+} from "lucide-react";
+import { CreateTeacherRequest, Teacher } from "@/types/teacher";
+
+// ✅ StatCard yang dioptimasi untuk iPhone SE
+const StatCard = ({
+  title,
+  value,
+  icon: Icon,
+  color,
+  isLoading,
+}: {
+  title: string;
+  value: number;
+  icon: React.ElementType;
+  color: string;
+  isLoading?: boolean;
+}) => (
+  <div className="bg-white p-3 xs:p-4 sm:p-6 rounded-lg xs:rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200">
+    <div className="flex items-center justify-between">
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-gray-600 truncate">{title}</p>
+        {isLoading ? (
+          <div className="h-5 xs:h-6 sm:h-8 w-12 xs:w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+        ) : (
+          <p
+            className={`text-lg xs:text-xl sm:text-2xl lg:text-3xl font-bold mt-1 ${color}`}
+          >
+            {value.toLocaleString()}
+          </p>
+        )}
+      </div>
+      <div className="ml-2 xs:ml-4 flex-shrink-0">
+        <div
+          className={`p-1.5 xs:p-2 sm:p-3 rounded-md xs:rounded-lg ${color
+            .replace("text-", "bg-")
+            .replace("-600", "-100")}`}
+        >
+          <Icon
+            className={`h-4 w-4 xs:h-5 xs:w-5 sm:h-6 sm:w-6 ${color.replace(
+              "-600",
+              "-500"
+            )}`}
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// ✅ Skeleton Card untuk iPhone SE
+const SkeletonCard = () => (
+  <div className="bg-white p-3 xs:p-4 sm:p-6 rounded-lg xs:rounded-xl shadow-sm border border-gray-200">
+    <div className="flex items-center justify-between">
+      <div className="flex-1">
+        <div className="h-3 xs:h-4 bg-gray-200 rounded w-16 xs:w-20 animate-pulse"></div>
+        <div className="h-5 xs:h-6 sm:h-8 bg-gray-200 rounded w-12 xs:w-16 mt-2 animate-pulse"></div>
+      </div>
+      <div className="ml-2 xs:ml-4">
+        <div className="h-4 w-4 xs:h-6 xs:w-6 sm:h-8 sm:w-8 bg-gray-200 rounded animate-pulse"></div>
+      </div>
+    </div>
+  </div>
+);
 
 export default function TeachersPage() {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   const {
     teachers,
     isLoading,
@@ -31,14 +93,19 @@ export default function TeachersPage() {
     deleteTeacher,
     toggleTeacherStatus,
     refresh,
-    // fetchTeachers
-  } = useTeachers();
+    fetchTeachers,
+  } = useTeachers({ page: currentPage, limit: pageSize });
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    fetchTeachers({ page, limit: pageSize });
+  };
 
   const handleAdd = () => {
     setEditingTeacher(undefined);
@@ -51,10 +118,11 @@ export default function TeachersPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm('Apakah Anda yakin ingin menghapus guru ini?')) {
+    if (confirm("Apakah Anda yakin ingin menghapus guru ini?")) {
       const success = await deleteTeacher(id);
       if (success) {
-        console.log('Teacher deleted successfully');
+        console.log("Teacher deleted successfully");
+        fetchTeachers({ page: currentPage, limit: pageSize });
       }
     }
   };
@@ -62,7 +130,7 @@ export default function TeachersPage() {
   const handleToggleStatus = async (id: number) => {
     const updatedTeacher = await toggleTeacherStatus(id);
     if (updatedTeacher) {
-      console.log('Teacher status updated successfully');
+      console.log("Teacher status updated successfully");
     }
   };
 
@@ -73,11 +141,12 @@ export default function TeachersPage() {
       let success = false;
 
       if (editingTeacher?.id) {
-        // Update existing teacher
-        const updatedTeacher = await updateTeacher(editingTeacher.id, teacherData);
+        const updatedTeacher = await updateTeacher(
+          editingTeacher.id,
+          teacherData
+        );
         success = !!updatedTeacher;
       } else {
-        // Create new teacher
         const newTeacher = await createTeacher(teacherData);
         success = !!newTeacher;
       }
@@ -85,11 +154,10 @@ export default function TeachersPage() {
       if (success) {
         setIsFormOpen(false);
         setEditingTeacher(undefined);
-        // Optionally show success message
+        fetchTeachers({ page: currentPage, limit: pageSize });
       }
     } catch (error) {
-      console.error('Error saving teacher:', error);
-      // Optionally show error message
+      console.error("Error saving teacher:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -102,167 +170,196 @@ export default function TeachersPage() {
 
   // Statistics berdasarkan struktur baru
   const stats = {
-    total: teachers.length,
-    active: teachers.filter(t => t.isActive || t.status === 'active').length,
-    inactive: teachers.filter(t => !t.isActive || t.status === 'inactive').length,
-    subjects: new Set(teachers.map(t => t.subject).filter(Boolean)).size
+    total: pagination?.total || 0,
+    active: teachers.filter((t) => t.isActive || t.status === "active").length,
+    inactive: teachers.filter((t) => !t.isActive || t.status === "inactive")
+      .length,
+    subjects: new Set(teachers.map((t) => t.subject).filter(Boolean)).size,
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between md:items-center md:flex-row flex-col">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Manajemen Guru</h1>
-          <p className="text-gray-600 mt-2">Kelola data guru dan informasi terkait</p>
-        </div>
-        <div className="flex space-x-3">
-          <Button 
-            variant="outline" 
-            onClick={refresh}
-            disabled={isLoading}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-          {/* <Button 
-            variant="outline"
-            onClick={() => setIsImportModalOpen(true)}
-            disabled={isLoading}
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Import Excel
-          </Button> */}
-          <Button 
-            variant="outline"
-            onClick={() => setIsExportModalOpen(true)}
-            disabled={isLoading || teachers.length === 0}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-          <Button onClick={handleAdd} disabled={isLoading}>
-            <Plus className="h-4 w-4 mr-2" />
-            Tambah Guru
-          </Button>
-        </div>
-      </div>
-
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-            <p className="text-red-700">{error}</p>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={refresh}
-              className="ml-auto"
+    <div className="max-w-full overflow-hidden">
+      <div className="space-y-3 xs:space-y-4 sm:space-y-6">
+        {/* ✅ Header untuk iPhone SE */}
+        <div className="flex flex-col gap-3 xs:gap-4">
+          <div>
+            <h1 className="text-xl xs:text-2xl sm:text-3xl font-bold text-gray-900">
+              Manajemen Guru
+            </h1>
+            <p className="text-sm xs:text-base text-gray-600 mt-1 xs:mt-2">
+              Kelola data guru dan informasi terkait
+            </p>
+          </div>
+          <div className="flex flex-col md:flex-row gap-2 xs:gap-3 justify-end">
+            <Button
+              variant="outline"
+              onClick={() =>
+                fetchTeachers({ page: currentPage, limit: pageSize })
+              }
+              disabled={isLoading}
+              className="w-full md:w-fit justify-center text-sm xs:text-base"
             >
-              Retry
+              <RefreshCw
+                className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+              />
+              Refresh
             </Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsExportModalOpen(true)}
+              disabled={isLoading || teachers.length === 0}
+              className="w-full md:w-fit justify-center text-sm xs:text-base"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+            {/* <Button onClick={handleAdd}>Tambah guru</Button> */}
           </div>
         </div>
-      )}
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Guru</p>
-              <p className="text-2xl font-bold text-blue-600">{stats.total}</p>
+        {/* ✅ Error Message untuk iPhone SE */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 xs:p-4">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-start">
+                <AlertCircle className="h-4 w-4 xs:h-5 xs:w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+                <p className="text-red-700 text-sm xs:text-base leading-tight">
+                  {error}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  fetchTeachers({ page: currentPage, limit: pageSize })
+                }
+                className="w-full"
+              >
+                Retry
+              </Button>
             </div>
-            <Users className="h-8 w-8 text-blue-500" />
           </div>
-        </div>
+        )}
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Guru Aktif</p>
-              <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+        {/* ✅ Statistics Cards untuk iPhone SE */}
+        {isLoading && teachers.length === 0 ? (
+          <div className="grid grid-cols-1 gap-3 xs:gap-4 sm:gap-6">
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 xs:gap-4 sm:gap-6">
+            <StatCard
+              title="Total Guru"
+              value={stats.total}
+              icon={Users}
+              color="text-blue-600"
+              isLoading={isLoading}
+            />
+
+            <StatCard
+              title="Guru Aktif"
+              value={stats.active}
+              icon={UserCheck}
+              color="text-green-600"
+              isLoading={isLoading}
+            />
+
+            <StatCard
+              title="Tidak Aktif"
+              value={stats.inactive}
+              icon={UserX}
+              color="text-red-600"
+              isLoading={isLoading}
+            />
+          </div>
+        )}
+
+        {/* ✅ Loading State */}
+        {isLoading && teachers.length === 0 ? (
+          <div className="bg-white rounded-lg xs:rounded-xl shadow-sm border border-gray-200 p-6 xs:p-8">
+            <div className="flex items-center justify-center">
+              <RefreshCw className="h-5 w-5 xs:h-6 xs:w-6 animate-spin text-blue-500 mr-2" />
+              <p className="text-gray-600 text-sm xs:text-base">
+                Loading teachers...
+              </p>
             </div>
-            <UserCheck className="h-8 w-8 text-green-500" />
           </div>
-        </div>
+        ) : (
+          <TeacherList
+            teachers={teachers}
+            onAdd={handleAdd}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onToggleStatus={handleToggleStatus}
+            isLoading={isLoading}
+            pagination={pagination}
+            onPageChange={handlePageChange}
+            pageSize={pageSize}
+            setPageSize={setPageSize}
+            setCurrentPage={setCurrentPage}
+            fetchTeachers={fetchTeachers}
+          />
+        )}
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Tidak Aktif</p>
-              <p className="text-2xl font-bold text-red-600">{stats.inactive}</p>
+        {/* ✅ Pagination Info untuk iPhone SE */}
+        {/* {pagination && (
+          <div className="bg-white p-3 xs:p-4 rounded-lg border border-gray-200">
+            <div className="flex flex-col gap-3 xs:gap-4">
+              <p className="text-xs xs:text-sm text-gray-600 text-center">
+                Menampilkan {(pagination.page - 1) * pagination.limit + 1} -{" "}
+                {Math.min(pagination.page * pagination.limit, pagination.total)}{" "}
+                dari {pagination.total} guru
+              </p>
+              <div className="flex items-center justify-center space-x-2">
+                <label className="text-xs xs:text-sm text-gray-600">
+                  Per halaman:
+                </label>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    const newSize = parseInt(e.target.value);
+                    setPageSize(newSize);
+                    setCurrentPage(1);
+                    fetchTeachers({ page: 1, limit: newSize });
+                  }}
+                  className="border border-gray-300 rounded px-2 py-1 text-xs xs:text-sm min-w-[50px]"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
             </div>
-            <UserX className="h-8 w-8 text-red-500" />
           </div>
-        </div>
+        )} */}
 
-        {/* <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Mata Pelajaran</p>
-              <p className="text-2xl font-bold text-purple-600">{stats.subjects}</p>
-            </div>
-            <BookOpen className="h-8 w-8 text-purple-500" />
-          </div>
-        </div> */}
-      </div>
+        {/* Modals */}
+        {isFormOpen && (
+          <TeacherForm
+            teacher={editingTeacher}
+            onSave={handleSave}
+            onCancel={() => {
+              setIsFormOpen(false);
+              setEditingTeacher(undefined);
+            }}
+            isLoading={isSubmitting}
+          />
+        )}
 
-      {/* Pagination Info */}
-      {pagination && (
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <p className="text-sm text-gray-600">
-            Showing {teachers.length} of {pagination.totalItems} teachers 
-            (Page {pagination.page} of {pagination.totalPages})
-          </p>
-        </div>
-      )}
+        <ImportModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          onSuccess={handleImportSuccess}
+        />
 
-      {/* Loading State */}
-      {isLoading && teachers.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-          <div className="flex items-center justify-center">
-            <RefreshCw className="h-6 w-6 animate-spin text-blue-500 mr-2" />
-            <p className="text-gray-600">Loading teachers...</p>
-          </div>
-        </div>
-      ) : (
-        /* Teacher List */
-        <TeacherList
+        <ExportModal
+          isOpen={isExportModalOpen}
+          onClose={() => setIsExportModalOpen(false)}
           teachers={teachers}
-          onAdd={handleAdd}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onToggleStatus={handleToggleStatus}
-          isLoading={isLoading}
         />
-      )}
-
-      {/* Modals */}
-      {isFormOpen && (
-        <TeacherForm
-          teacher={editingTeacher}
-          onSave={handleSave}
-          onCancel={() => {
-            setIsFormOpen(false);
-            setEditingTeacher(undefined);
-          }}
-          isLoading={isSubmitting}
-        />
-      )}
-
-      <ImportModal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        onSuccess={handleImportSuccess}
-      />
-
-      <ExportModal
-        isOpen={isExportModalOpen}
-        onClose={() => setIsExportModalOpen(false)}
-        teachers={teachers}
-      />
+      </div>
     </div>
   );
 }

@@ -176,7 +176,7 @@ function SidebarContent({
       </nav>
 
       {/* ✅ Settings */}
-      <div className="p-4 border-t border-slate-700">
+      {/* <div className="p-4 border-t border-slate-700">
         <button
           onClick={(e) => handleNavigation('/settings', e)}
           disabled={isLoading}
@@ -192,7 +192,7 @@ function SidebarContent({
           )}
           <span className="truncate">Pengaturan</span>
         </button>
-      </div>
+      </div> */}
     </div>
   );
 }
