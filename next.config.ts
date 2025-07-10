@@ -1,8 +1,32 @@
+// import type { NextConfig } from "next";
+
+// const nextConfig: NextConfig = {
+//   async rewrites() {
+//     return [
+//       {
+//         source: '/api/:path*',
+//         destination: `${process.env.NEXT_PUBLIC_API_URL}/:path*`, // atau ganti sesuai kebutuhanmu
+//       },
+//     ]
+//   },
+//   typescript: {
+//     ignoreBuildErrors: true,
+//   },
+//   eslint: {
+//     ignoreDuringBuilds: true,
+//   }
+// };
+
+// export default nextConfig;
+
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Enable standalone output for Docker deployment
   output: 'standalone',
+  
+  // Disable telemetry
+  telemetry: false,
   
   // API rewrites
   async rewrites() {
@@ -22,33 +46,15 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   
-  // ✅ PERBAIKI: App Router sudah stable di Next.js 15
-  experimental: {
-    // Tidak perlu appDir di Next.js 15
-  },
-  
   // Image optimization
   images: {
-    // ✅ PERBAIKI: Gunakan remotePatterns untuk Next.js 15
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'localhost',
-      },
-      {
-        protocol: 'https',
-        hostname: 'development-pkkp-api.edunusa.co.id',
-      },
-      {
-        protocol: 'https',
-        hostname: 'staging-pkkp-api.edunusa.co.id',
-      },
-      {
-        protocol: 'https',
-        hostname: 'pkkp-api.edunusa.co.id',
-      },
+    domains: [
+      'localhost',
+      'development-pkkp-api.edunusa.co.id',
+      'staging-pkkp-api.edunusa.co.id',
+      'pkkp-api.edunusa.co.id'
     ],
-    unoptimized: true,
+    unoptimized: true, // Add this if having issues with image optimization
   },
   
   // Environment variables

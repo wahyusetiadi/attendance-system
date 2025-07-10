@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  itn-edunusa-paud-kanzul-khairat-fe-staging:
+    image: itn-edunusa-paud-kanzul-khairat-fe-staging:latest
+    container_name: itn-edunusa-paud-kanzul-khairat-fe-staging
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.staging
+      args:
+        NODE_ENV: ${NODE_ENV}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_TELEMETRY_DISABLED: ${NEXT_TELEMETRY_DISABLED}
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_TELEMETRY_DISABLED: ${NEXT_TELEMETRY_DISABLED}
+    ports:
+      - "3503:6006"
+    restart: unless-stopped
+    env_file:
+      - env/.env.staging
