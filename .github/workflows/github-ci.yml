@@ -3,9 +3,9 @@ name: Frontend CI/CD Pipeline
 
 on:
   push:
-    branches: [ development, staging, production ]
+    branches: [ development, staging ]
   pull_request:
-    branches: [ development, staging, production ]
+    branches: [ development, staging ]
 
 jobs:
   build-and-deploy:
