@@ -1,11 +1,35 @@
+// import type { NextConfig } from "next";
+
+// const nextConfig: NextConfig = {
+//   async rewrites() {
+//     return [
+//       {
+//         source: '/api/:path*',
+//         destination: `${process.env.NEXT_PUBLIC_API_URL}/:path*`, // atau ganti sesuai kebutuhanmu
+//       },
+//     ]
+//   },
+//   typescript: {
+//     ignoreBuildErrors: true,
+//   },
+//   eslint: {
+//     ignoreDuringBuilds: true,
+//   }
+// };
+
+// export default nextConfig;
+
 import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
   // Output untuk Docker deployment
   output: 'standalone',
-
-  // Rewrites
+  
+  // Disable telemetry
+  telemetry: false,
+  
+  // API rewrites
   async rewrites() {
     return [
       {
@@ -22,16 +46,16 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-
+  
   // Image optimization
   images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: 'localhost' },
-      { protocol: 'https', hostname: 'development-pkkp-api.edunusa.co.id' },
-      { protocol: 'https', hostname: 'staging-pkkp-api.edunusa.co.id' },
-      { protocol: 'https', hostname: 'pkkp-api.edunusa.co.id' },
+    domains: [
+      'localhost',
+      'development-pkkp-api.edunusa.co.id',
+      'staging-pkkp-api.edunusa.co.id',
+      'pkkp-api.edunusa.co.id'
     ],
-    unoptimized: true,
+    unoptimized: true, // Add this if having issues with image optimization
   },
 
   // Environment
