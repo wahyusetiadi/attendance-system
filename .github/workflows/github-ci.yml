@@ -23,7 +23,7 @@ jobs:
         if [[ "${{ github.ref }}" == "refs/heads/development" ]]; then
           echo "DOMAIN_APPS=development-paud-kanzul-khairat-presensi.edunusa.co.id" >> $GITHUB_ENV
           echo "PORT_EXPOSE_APPS=3501" >> $GITHUB_ENV
-          echo "NODE_ENV=develoment" >> $GITHUB_ENV
+          echo "NODE_ENV=development" >> $GITHUB_ENV
           echo "IMAGE_TAG=development" >> $GITHUB_ENV
           echo "NEXT_PUBLIC_API_URL=https://development-pkkp-api.edunusa.co.id" >> $GITHUB_ENV
         elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
@@ -152,6 +152,27 @@ jobs:
           echo "Container logs:"
           docker logs $CONTAINER_NAME
           echo "But continuing deployment..."
+        fi
+
+    - name: Rollback on failure
+      if: failure()
+      run: |
+        echo "⚠️ Deployment failed, rolling back..."
+        PREV_IMAGE=$(docker images $REGISTRY/$IMAGE_NAME --format "{{.Repository}}:{{.Tag}}" | grep -v "$IMAGE_TAG" | head -n 1)
+        if [ -n "$PREV_IMAGE" ]; then
+          echo "Rolling back to $PREV_IMAGE"
+          docker stop $CONTAINER_NAME || true
+          docker rm $CONTAINER_NAME || true
+          docker run -d \
+            --name $CONTAINER_NAME \
+            --restart unless-stopped \
+            -p $PORT_EXPOSE_APPS:$PORT_CONTAINER \
+            -e NODE_ENV=$NODE_ENV \
+            -e PORT=$PORT_CONTAINER \
+            -e NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+            $PREV_IMAGE
+        else
+          echo "No previous image found to rollback"
         fi
     
     - name: Cleanup old images
