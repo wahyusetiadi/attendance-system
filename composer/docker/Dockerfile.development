@@ -3,18 +3,34 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Salin file package.json dan install dependencies
+# Salin file package.json dan lock file
 COPY package*.json ./
 COPY package-lock.json ./
+
+# Install production dependencies
 RUN npm ci --only=production --ignore-scripts
 
 # Install dev dependencies untuk build
 RUN npm install --only=development
 
-# Salin semua source code
+# Salin seluruh source code
 COPY . .
 
-# Jalankan build
+# ====== Tambahan Penting untuk Build ARG/ENV ======
+# Ambil variabel dari docker-compose
+ARG NODE_ENV
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_TELEMETRY_DISABLED
+
+# Promote ARG jadi ENV agar terbaca saat build
+ENV NODE_ENV=$NODE_ENV
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_TELEMETRY_DISABLED=$NEXT_TELEMETRY_DISABLED
+
+# Debug (opsional, bisa dihapus)
+RUN echo "📦 NEXT_PUBLIC_API_URL: $NEXT_PUBLIC_API_URL"
+
+# Build Next.js
 RUN npm run build
 
 # Step 2: Production stage
@@ -22,25 +38,25 @@ FROM node:18-alpine AS runner
 
 WORKDIR /app
 
-# Buat user non-root untuk security
+# Buat user non-root untuk keamanan
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Salin hanya file penting untuk runtime
+# Salin hanya file runtime yang dibutuhkan
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/next.config.* ./
 
-# Install hanya production dependencies
+# Salin file package* lagi untuk npm ci
 COPY --from=builder /app/package*.json ./
 RUN npm ci --only=production && npm cache clean --force
 
-# Set ownership
+# Set ownership supaya tidak permission denied
 RUN chown -R nextjs:nodejs /app
 
-# Switch to non-root user
+# Jalankan dengan user non-root
 USER nextjs
 
-# Start aplikasi
+# Jalankan aplikasi
 CMD ["npm", "start"]

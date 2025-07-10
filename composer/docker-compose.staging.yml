@@ -5,8 +5,8 @@ services:
     image: itn-edunusa-paud-kanzul-khairat-fe-staging:latest
     container_name: itn-edunusa-paud-kanzul-khairat-fe-staging
     build:
-      context: .
-      dockerfile: docker/Dockerfile.staging
+      context: ../
+      dockerfile: composer/docker/Dockerfile.staging
       args:
         NODE_ENV: ${NODE_ENV}
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
@@ -19,4 +19,5 @@ services:
       - "3503:6006"
     restart: unless-stopped
     env_file:
-      - env/.env.staging
+      - env/staging/.env
+
