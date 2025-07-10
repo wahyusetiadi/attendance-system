@@ -178,7 +178,7 @@ export default function TeachersPage() {
   };
 
   return (
-    <div className="max-w-full overflow-hidden">
+    <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6 max-w-full overflow-x-hidden">
       <div className="space-y-3 xs:space-y-4 sm:space-y-6">
         {/* ✅ Header untuk iPhone SE */}
         <div className="flex flex-col gap-3 xs:gap-4">
