@@ -20,9 +20,10 @@
 // export default nextConfig;
 
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
-  // Enable standalone output for Docker deployment
+  // Output untuk Docker deployment
   output: 'standalone',
   
   // Disable telemetry
@@ -37,8 +38,8 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  
-  // Build configuration
+
+  // TypeScript & ESLint
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -56,47 +57,44 @@ const nextConfig: NextConfig = {
     ],
     unoptimized: true, // Add this if having issues with image optimization
   },
-  
-  // Environment variables
+
+  // Environment
   env: {
     BUILD_ENV: process.env.BUILD_ENV || 'production',
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   },
-  
-  // Webpack configuration
+
+  // Webpack: perbaikan alias + fallback
   webpack: (config, { dev, isServer }) => {
-    // Fix for module resolution issues
+    // Alias "@" -> "src"
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      "@": path.resolve(__dirname, "src"),
+    };
+
+    // Optional: fallback node modules
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,
       path: false,
       crypto: false,
     };
-    
+
     return config;
   },
-  
-  // Output configuration
+
+  // Output settings
   trailingSlash: false,
-  
+
   // Security headers
   async headers() {
     return [
       {
         source: '/(.*)',
         headers: [
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'Referrer-Policy',
-            value: 'origin-when-cross-origin',
-          },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'origin-when-cross-origin' },
         ],
       },
     ];
