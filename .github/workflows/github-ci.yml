@@ -82,7 +82,7 @@ jobs:
           echo "✅ Build successful"
           echo "build_status=success" >> $GITHUB_OUTPUT
         else
-          echo "❌ Build failed, 
+          echo "❌ Build failed" 
           echo "build_status=failed" >> $GITHUB_OUTPUT
           exit 1
         fi
