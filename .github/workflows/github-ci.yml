@@ -10,7 +10,7 @@ on:
 jobs:
   build-and-deploy:
     name: Build and Deploy
-    runs-on: self-hosted
+    runs-on: [self-hosted]
     if: github.event_name == 'push'
     
     steps:
@@ -231,7 +231,7 @@ jobs:
 
   validate-pr:
     name: Validate PR
-    runs-on: self-hosted
+    runs-on: [self-hosted]
     if: github.event_name == 'pull_request'
     
     steps:
