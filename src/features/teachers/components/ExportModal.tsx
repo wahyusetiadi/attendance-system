@@ -1,20 +1,21 @@
 'use client';
 
-import { useState } from 'react';
-import { Teacher } from '@/types';
+import { useState, useEffect } from 'react';
+import { Teacher } from '@/types/teacher';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { teachersAPI } from '@/api/api';
 import { 
   X, 
   Download, 
   FileText, 
   FileSpreadsheet,
-  FileImage,
   Users,
   Filter,
   CheckCircle,
   Settings,
-  Eye
+  Eye,
+  AlertCircle
 } from 'lucide-react';
 
 interface ExportModalProps {
@@ -34,10 +35,20 @@ interface ExportOptions {
   sortOrder: 'asc' | 'desc';
 }
 
+// ✅ Define field interface
+interface ExportField {
+  key: string;
+  label: string;
+  category: 'personal' | 'contact' | 'employment';
+}
+
 export function ExportModal({ isOpen, onClose, teachers }: ExportModalProps) {
   const [isExporting, setIsExporting] = useState(false);
+  const [isLoadingAllData, setIsLoadingAllData] = useState(false);
+  const [allTeachers, setAllTeachers] = useState<Teacher[]>([]);
   const [customFileName, setCustomFileName] = useState('');
   const [showPreview, setShowPreview] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [options, setOptions] = useState<ExportOptions>({
     format: 'excel',
@@ -50,58 +61,79 @@ export function ExportModal({ isOpen, onClose, teachers }: ExportModalProps) {
     sortOrder: 'asc'
   });
 
+  // ✅ Load all teachers when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      loadAllTeachers();
+    }
+  }, [isOpen]);
+
+  const loadAllTeachers = async () => {
+    setIsLoadingAllData(true);
+    setError(null);
+
+    try {
+      // ✅ Fetch all teachers without pagination limit
+      const response = await teachersAPI.getAll({ 
+        limit: 1000, // Set high limit to get all data
+        page: 1 
+      });
+
+      if (response.success) {
+        setAllTeachers(response.data);
+      } else {
+        setError('Gagal mengambil data lengkap guru');
+        // Fallback to current page data
+        setAllTeachers(teachers);
+      }
+    } catch (err) {
+      console.error('Error loading all teachers:', err);
+      setError('Gagal mengambil data lengkap guru');
+      // Fallback to current page data
+      setAllTeachers(teachers);
+    } finally {
+      setIsLoadingAllData(false);
+    }
+  };
+
   if (!isOpen) return null;
 
-  const allFields = [
+  // ✅ Define fields with proper typing
+  const allFields: ExportField[] = [
     { key: 'nip', label: 'NIP', category: 'personal' },
     { key: 'name', label: 'Nama Lengkap', category: 'personal' },
     { key: 'email', label: 'Email', category: 'contact' },
     { key: 'phone', label: 'Telepon', category: 'contact' },
     { key: 'address', label: 'Alamat', category: 'contact' },
-    { key: 'subject', label: 'Mata Pelajaran', category: 'employment' },
-    { key: 'grade', label: 'Kelas', category: 'employment' },
-    { key: 'status', label: 'Status', category: 'employment' },
-    { key: 'joinDate', label: 'Tanggal Bergabung', category: 'employment' }
+    // { key: 'subject', label: 'Mata Pelajaran', category: 'employment' },
+    { key: 'rfidUid', label: 'RFID UID', category: 'employment' },
+    { key: 'isActive', label: 'Status', category: 'employment' },
+    { key: 'createdAt', label: 'Tanggal Bergabung', category: 'employment' }
   ];
 
-  // ✅ Helper function to safely parse date
-  const safeParseDate = (dateString: string | undefined): Date => {
-    if (!dateString) {
-      return new Date(0); // Return epoch date for undefined values
-    }
+  const safeParseDate = (dateString: string | number | undefined): Date => {
+    if (!dateString) return new Date(0);
 
-    const parsedDate = new Date(dateString);
-
-    // Check if date is valid
-    if (isNaN(parsedDate.getTime())) {
-      return new Date(0); // Return epoch date for invalid dates
-    }
-
-    return parsedDate;
+    // Handle timestamp (number) atau string
+    const date = typeof dateString === 'number' ? new Date(dateString) : new Date(dateString);
+    return isNaN(date.getTime()) ? new Date(0) : date;
   };
 
-  // ✅ Helper function to format date safely
-  const formatDate = (dateString: string | undefined): string => {
-    if (!dateString) {
-      return '-';
-    }
-
+  const formatDate = (dateString: string | number | undefined): string => {
+    if (!dateString) return '-';
     try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        return '-';
-      }
-      return date.toLocaleDateString('id-ID');
+      const date = safeParseDate(dateString);
+      return isNaN(date.getTime()) ? '-' : date.toLocaleDateString('id-ID');
     } catch (error) {
       return '-';
     }
   };
 
-  const getFilteredTeachers = () => {
-    let filtered = [...teachers];
+  const getFilteredTeachers = (): Teacher[] => {
+    let filtered = [...allTeachers];
 
     if (!options.includeInactive) {
-      filtered = filtered.filter(teacher => teacher.status === 'active');
+      filtered = filtered.filter(teacher => teacher.isActive);
     }
 
     // Sorting
@@ -122,9 +154,8 @@ export function ExportModal({ isOpen, onClose, teachers }: ExportModalProps) {
           bValue = b.subject || '';
           break;
         case 'joinDate':
-          // ✅ Use safe date parsing
-          aValue = safeParseDate(a.joinDate);
-          bValue = safeParseDate(b.joinDate);
+          aValue = safeParseDate(a.createdAt);
+          bValue = safeParseDate(b.createdAt);
           break;
         default:
           return 0;
@@ -140,8 +171,9 @@ export function ExportModal({ isOpen, onClose, teachers }: ExportModalProps) {
     return filtered;
   };
 
-  const getExportFields = () => {
-    const fields = [];
+  // ✅ Fix typing issue in getExportFields
+  const getExportFields = (): ExportField[] => {
+    const fields: ExportField[] = [];
 
     if (options.includePersonalInfo) {
       fields.push(...allFields.filter(f => f.category === 'personal'));
@@ -156,7 +188,7 @@ export function ExportModal({ isOpen, onClose, teachers }: ExportModalProps) {
     return fields;
   };
 
-  const generateFileName = () => {
+  const generateFileName = (): string => {
     if (customFileName.trim()) {
       return customFileName.trim();
     }
@@ -175,15 +207,16 @@ export function ExportModal({ isOpen, onClose, teachers }: ExportModalProps) {
 
       fields.forEach(field => {
         switch (field.key) {
-          case 'status':
-            row[field.label] = teacher.status === 'active' ? 'Aktif' : 'Tidak Aktif';
+          case 'isActive':
+            row[field.label] = teacher.isActive ? 'Aktif' : 'Tidak Aktif';
             break;
-          case 'joinDate':
-            // ✅ Use safe date formatting
-            row[field.label] = formatDate(teacher.joinDate);
+          case 'createdAt':
+            row[field.label] = formatDate(teacher.createdAt);
             break;
           default:
-            row[field.label] = teacher[field.key as keyof Teacher] || '-';
+            // ✅ Safe property access
+            const value = teacher[field.key as keyof Teacher];
+            row[field.label] = value || '-';
         }
       });
 
@@ -192,6 +225,11 @@ export function ExportModal({ isOpen, onClose, teachers }: ExportModalProps) {
   };
 
   const handleExport = async () => {
+    if (isLoadingAllData) {
+      alert('Mohon tunggu, sedang mengambil data lengkap...');
+      return;
+    }
+
     setIsExporting(true);
 
     try {
@@ -237,7 +275,6 @@ export function ExportModal({ isOpen, onClose, teachers }: ExportModalProps) {
   };
 
   const downloadAsExcel = (data: any[], fileName: string) => {
-    // Simplified Excel export - in real app, use library like xlsx
     const csvContent = prepareCSVContent(data);
     const blob = new Blob([csvContent], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const link = document.createElement('a');
@@ -247,7 +284,6 @@ export function ExportModal({ isOpen, onClose, teachers }: ExportModalProps) {
   };
 
   const downloadAsPDF = (data: any[], fileName: string) => {
-    // Simplified PDF export - in real app, use library like jsPDF
     const content = data.map(row => Object.values(row).join(' | ')).join('\n');
     const blob = new Blob([content], { type: 'application/pdf' });
     const link = document.createElement('a');
@@ -266,24 +302,18 @@ export function ExportModal({ isOpen, onClose, teachers }: ExportModalProps) {
   };
 
   const formatOptions = [
+    // {
+    //   value: 'excel' as const,
+    //   label: 'Excel (.xlsx)',
+    //   icon: FileSpreadsheet,
+    //   description: 'Format terbaik untuk analisis data dan import'
+    // },
     {
-      value: 'excel',
-      label: 'Excel (.xlsx)',
-      icon: FileSpreadsheet,
-      description: 'Format terbaik untuk analisis data dan import'
-    },
-    {
-      value: 'csv',
+      value: 'csv' as const,
       label: 'CSV (.csv)',
       icon: FileText,
       description: 'Format universal, kompatibel dengan semua aplikasi'
-    },
-    // {
-    //   value: 'pdf',
-    //   label: 'PDF (.pdf)',
-    //   icon: FileImage,
-    //   description: 'Format untuk dokumen dan laporan resmi'
-    // }
+    }
   ];
 
   const filteredTeachers = getFilteredTeachers();
@@ -300,13 +330,41 @@ export function ExportModal({ isOpen, onClose, teachers }: ExportModalProps) {
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Export Data Guru</h2>
-              <p className="text-sm text-gray-500">{teachers.length} guru tersedia untuk export</p>
+              <p className="text-sm text-gray-500">
+                {isLoadingAllData 
+                  ? 'Mengambil data lengkap...' 
+                  : `${allTeachers.length} guru tersedia untuk export`
+                }
+              </p>
             </div>
           </div>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-5 w-5" />
           </Button>
         </div>
+
+        {/* ✅ Loading State */}
+        {isLoadingAllData && (
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center space-x-3 text-blue-600">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+              <span className="text-sm">Mengambil semua data guru...</span>
+            </div>
+          </div>
+        )}
+
+        {/* ✅ Error State */}
+        {error && (
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center space-x-3 text-amber-600 bg-amber-50 p-3 rounded-lg">
+              <AlertCircle className="h-5 w-5" />
+              <div>
+                <p className="text-sm font-medium">{error}</p>
+                <p className="text-xs">Menggunakan data halaman saat ini ({teachers.length} guru)</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="p-6 space-y-6">
           {/* Export Format */}
@@ -426,7 +484,7 @@ export function ExportModal({ isOpen, onClose, teachers }: ExportModalProps) {
                     onChange={(e) => setOptions(prev => ({ ...prev, includeEmploymentInfo: e.target.checked }))}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm text-gray-700">Pekerjaan (Mata Pelajaran, Status)</span>
+                  <span className="text-sm text-gray-700">Pekerjaan (Mata Pelajaran, Status, RFID)</span>
                 </label>
               </div>
             </div>
@@ -453,6 +511,7 @@ export function ExportModal({ isOpen, onClose, teachers }: ExportModalProps) {
                 variant="outline"
                 size="sm"
                 onClick={() => setShowPreview(!showPreview)}
+                disabled={isLoadingAllData}
               >
                 <Eye className="h-4 w-4 mr-2" />
                 {showPreview ? 'Sembunyikan' : 'Tampilkan'} Preview
@@ -462,7 +521,9 @@ export function ExportModal({ isOpen, onClose, teachers }: ExportModalProps) {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div className="flex items-center space-x-2">
                 <Users className="h-4 w-4 text-gray-500" />
-                <span className="text-gray-600">{filteredTeachers.length} guru</span>
+                <span className="text-gray-600">
+                  {isLoadingAllData ? '...' : `${filteredTeachers.length} guru`}
+                </span>
               </div>
               <div className="flex items-center space-x-2">
                 <Settings className="h-4 w-4 text-gray-500" />
@@ -482,7 +543,7 @@ export function ExportModal({ isOpen, onClose, teachers }: ExportModalProps) {
               </div>
             </div>
 
-            {showPreview && filteredTeachers.length > 0 && (
+            {showPreview && filteredTeachers.length > 0 && !isLoadingAllData && (
               <div className="mt-4 border border-gray-200 rounded-lg overflow-hidden">
                 <div className="overflow-x-auto max-h-48">
                   <table className="min-w-full divide-y divide-gray-200">
@@ -502,13 +563,13 @@ export function ExportModal({ isOpen, onClose, teachers }: ExportModalProps) {
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {filteredTeachers.slice(0, 3).map((teacher, index) => (
-                        <tr key={index} className="hover:bg-gray-50">
+                        <tr key={teacher.id || index} className="hover:bg-gray-50">
                           {exportFields.slice(0, 4).map(field => (
                             <td key={field.key} className="px-3 py-2 text-sm text-gray-900">
-                              {field.key === 'status' 
-                                ? (teacher.status === 'active' ? 'Aktif' : 'Tidak Aktif')
-                                : field.key === 'joinDate'
-                                ? formatDate(teacher.joinDate) // ✅ Use safe formatting
+                              {field.key === 'isActive' 
+                                ? (teacher.isActive ? 'Aktif' : 'Tidak Aktif')
+                                : field.key === 'createdAt'
+                                ? formatDate(teacher.createdAt)
                                 : teacher[field.key as keyof Teacher] || '-'
                               }
                             </td>
@@ -538,12 +599,17 @@ export function ExportModal({ isOpen, onClose, teachers }: ExportModalProps) {
           </Button>
           <Button 
             onClick={handleExport} 
-            disabled={isExporting || filteredTeachers.length === 0 || exportFields.length === 0}
+            disabled={isExporting || isLoadingAllData || filteredTeachers.length === 0 || exportFields.length === 0}
           >
             {isExporting ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                 Mengexport...
+              </>
+            ) : isLoadingAllData ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Mengambil Data...
               </>
             ) : (
               <>

@@ -85,6 +85,7 @@ export default function TeachersPage() {
 
   const {
     teachers,
+    allTeachers, // ✅ Dapatkan semua data
     isLoading,
     error,
     pagination,
@@ -168,17 +169,16 @@ export default function TeachersPage() {
     setIsImportModalOpen(false);
   };
 
-  // Statistics berdasarkan struktur baru
+  // ✅ Statistik berdasarkan total dari pagination dan hitung dari semua data
   const stats = {
-    total: pagination?.total || 0,
-    active: teachers.filter((t) => t.isActive || t.status === "active").length,
-    inactive: teachers.filter((t) => !t.isActive || t.status === "inactive")
-      .length,
-    subjects: new Set(teachers.map((t) => t.subject).filter(Boolean)).size,
+    total: pagination?.total || 0, // ✅ Ambil dari pagination.total
+    active: allTeachers.filter((t) => t.isActive === true).length, // ✅ Hitung dari semua data
+    inactive: allTeachers.filter((t) => t.isActive === false).length, // ✅ Hitung dari semua data
+    subjects: new Set(allTeachers.map((t) => t.subject).filter(Boolean)).size,
   };
 
   return (
-    <div className="max-w-full overflow-hidden">
+    <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6 max-w-full overflow-x-hidden">
       <div className="space-y-3 xs:space-y-4 sm:space-y-6">
         {/* ✅ Header untuk iPhone SE */}
         <div className="flex flex-col gap-3 xs:gap-4">
@@ -241,8 +241,8 @@ export default function TeachersPage() {
           </div>
         )}
 
-        {/* ✅ Statistics Cards untuk iPhone SE */}
-        {isLoading && teachers.length === 0 ? (
+        {/* ✅ Statistics Cards dengan data yang benar */}
+        {isLoading && allTeachers.length === 0 ? (
           <div className="grid grid-cols-1 gap-3 xs:gap-4 sm:gap-6">
             <SkeletonCard />
             <SkeletonCard />
@@ -302,38 +302,6 @@ export default function TeachersPage() {
             fetchTeachers={fetchTeachers}
           />
         )}
-
-        {/* ✅ Pagination Info untuk iPhone SE */}
-        {/* {pagination && (
-          <div className="bg-white p-3 xs:p-4 rounded-lg border border-gray-200">
-            <div className="flex flex-col gap-3 xs:gap-4">
-              <p className="text-xs xs:text-sm text-gray-600 text-center">
-                Menampilkan {(pagination.page - 1) * pagination.limit + 1} -{" "}
-                {Math.min(pagination.page * pagination.limit, pagination.total)}{" "}
-                dari {pagination.total} guru
-              </p>
-              <div className="flex items-center justify-center space-x-2">
-                <label className="text-xs xs:text-sm text-gray-600">
-                  Per halaman:
-                </label>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    const newSize = parseInt(e.target.value);
-                    setPageSize(newSize);
-                    setCurrentPage(1);
-                    fetchTeachers({ page: 1, limit: newSize });
-                  }}
-                  className="border border-gray-300 rounded px-2 py-1 text-xs xs:text-sm min-w-[50px]"
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        )} */}
 
         {/* Modals */}
         {isFormOpen && (

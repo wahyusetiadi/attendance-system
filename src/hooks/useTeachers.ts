@@ -13,6 +13,7 @@ interface UseTeachersParams {
 
 interface UseTeachersReturn {
   teachers: Teacher[];
+  allTeachers: Teacher[]; // ✅ Tambahkan untuk semua data
   isLoading: boolean;
   error: string | null;
   pagination: Pagination | null;
@@ -26,10 +27,24 @@ interface UseTeachersReturn {
 
 export const useTeachers = (initialParams?: UseTeachersParams): UseTeachersReturn => {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [allTeachers, setAllTeachers] = useState<Teacher[]>([]); // ✅ State untuk semua data
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [currentParams, setCurrentParams] = useState<UseTeachersParams>(initialParams || {});
+
+  // ✅ Fetch semua guru untuk statistik
+  const fetchAllTeachers = async () => {
+    try {
+      const response = await teachersAPI.getAll({ limit: 1000 }); // Atau tanpa limit
+      if (response.success) {
+        setAllTeachers(response.data);
+        console.log(`✅ Loaded ${response.data.length} teachers for statistics`);
+      }
+    } catch (error) {
+      console.error('Error fetching all teachers:', error);
+    }
+  };
 
   const fetchTeachers = async (params?: UseTeachersParams) => {
     setIsLoading(true);
@@ -44,14 +59,12 @@ export const useTeachers = (initialParams?: UseTeachersParams): UseTeachersRetur
       if (response.success) {
         setTeachers(response.data);
         if (response.pagination) {
-          // Map backend pagination response to frontend Pagination interface
-          // Backend response structure dari contoh Anda:
           const backendPagination = response.pagination as any;
 
           setPagination({
             page: backendPagination.page,
             limit: backendPagination.limit,
-            total: backendPagination.total, // Backend menggunakan "total"
+            total: backendPagination.total, // ✅ Backend menggunakan "total"
             totalPages: backendPagination.totalPages,
             hasNext: backendPagination.hasNext,
             hasPrev: backendPagination.hasPrev,
@@ -81,6 +94,7 @@ export const useTeachers = (initialParams?: UseTeachersParams): UseTeachersRetur
       if (response.success) {
         // Refresh data after create
         await fetchTeachers(currentParams);
+        await fetchAllTeachers(); // ✅ Refresh semua data juga
         return response.data;
       } else {
         setError(response.message || 'Failed to create teacher');
@@ -108,6 +122,10 @@ export const useTeachers = (initialParams?: UseTeachersParams): UseTeachersRetur
         setTeachers(prev => prev.map(teacher => 
           teacher.id === id ? response.data : teacher
         ));
+        // ✅ Update juga di allTeachers
+        setAllTeachers(prev => prev.map(teacher => 
+          teacher.id === id ? response.data : teacher
+        ));
         return response.data;
       } else {
         setError(response.message || 'Failed to update teacher');
@@ -133,6 +151,8 @@ export const useTeachers = (initialParams?: UseTeachersParams): UseTeachersRetur
       if (response.success) {
         // Remove teacher from local state
         setTeachers(prev => prev.filter(teacher => teacher.id !== id));
+        // ✅ Remove juga dari allTeachers
+        setAllTeachers(prev => prev.filter(teacher => teacher.id !== id));
         return true;
       } else {
         setError(response.message || 'Failed to delete teacher');
@@ -160,6 +180,10 @@ export const useTeachers = (initialParams?: UseTeachersParams): UseTeachersRetur
         setTeachers(prev => prev.map(teacher => 
           teacher.id === id ? response.data : teacher
         ));
+        // ✅ Update juga di allTeachers
+        setAllTeachers(prev => prev.map(teacher => 
+          teacher.id === id ? response.data : teacher
+        ));
         return response.data;
       } else {
         setError(response.message || 'Failed to toggle teacher status');
@@ -176,16 +200,21 @@ export const useTeachers = (initialParams?: UseTeachersParams): UseTeachersRetur
   };
 
   const refresh = async () => {
-    await fetchTeachers(currentParams);
+    await Promise.all([
+      fetchTeachers(currentParams),
+      fetchAllTeachers() // ✅ Refresh semua data juga
+    ]);
   };
 
-  // Fetch teachers on mount
+  // ✅ Fetch teachers dan semua data saat mount
   useEffect(() => {
     fetchTeachers();
+    fetchAllTeachers();
   }, []);
 
   return {
     teachers,
+    allTeachers, // ✅ Return semua data
     isLoading,
     error,
     pagination,
