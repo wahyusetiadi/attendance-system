@@ -2,8 +2,8 @@ version: "3.8"
 
 services:
   itn-edunusa-paud-kanzul-khairat-fe-production:
-    image: itn-edunusa-paud-kanzul-khairat-fe-production:latest
-    container_name: itn-edunusa-paud-kanzul-khairat-fe-production
+    image: itn-edunusa-paud-kanzul-khairat-fe-production-img:latest
+    container_name: itn-edunusa-paud-kanzul-khairat-fe-production-ctr
     build:
       context: ../
       dockerfile: composer/docker/Dockerfile.production
