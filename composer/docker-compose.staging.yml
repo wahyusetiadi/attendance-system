@@ -2,8 +2,8 @@ version: "3.8"
 
 services:
   itn-edunusa-paud-kanzul-khairat-fe-staging:
-    image: itn-edunusa-paud-kanzul-khairat-fe-staging:latest
-    container_name: itn-edunusa-paud-kanzul-khairat-fe-staging
+    image: itn-edunusa-paud-kanzul-khairat-fe-staging-img:latest
+    container_name: itn-edunusa-paud-kanzul-khairat-fe-staging-ctr
     build:
       context: ../
       dockerfile: composer/docker/Dockerfile.staging
