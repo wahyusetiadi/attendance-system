@@ -21,3 +21,20 @@ services:
     env_file:
       - env/staging/.env
 
+    networks:
+      - traefik
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.itn-edunusa-paud-kanzul-khairat-fe-staging.rule=Host(`staging-paud-kanzul-khairat-presensi.edunusa.co.id`)"
+      - "traefik.http.routers.itn-edunusa-paud-kanzul-khairat-fe-staging.entrypoints=websecure"
+      - "traefik.http.routers.itn-edunusa-paud-kanzul-khairat-fe-staging.tls=true"
+      - "traefik.http.routers.itn-edunusa-paud-kanzul-khairat-fe-staging.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.itn-edunusa-paud-kanzul-khairat-fe-staging.loadbalancer.server.port=6006"
+      # (jika backend kamu pakai prefix API seperti /api atau /graphql)
+      # - "traefik.http.routers.itn-edunusa-paud-kanzul-khairat-fe-staging.middlewares=strip-prefix"
+      # - "traefik.http.middlewares.strip-prefix.stripprefix.prefixes=/api"
+    
+networks:
+  traefik:
+    external: true
