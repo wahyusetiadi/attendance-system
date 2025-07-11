@@ -59,6 +59,7 @@ export interface AttendanceListResponse {
   message?: string;
   total?: number;
   pagination?: {
+    hasNext: { page: number; limit: number; totalPages: number; totalItems: number; } | undefined;
     page: number;
     limit: number;
     totalPages: number;
