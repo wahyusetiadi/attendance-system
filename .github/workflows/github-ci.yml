@@ -19,15 +19,12 @@ jobs:
     steps:
     - name: Clean up workspace before checkout
       run: |
-          echo "Installing fresh dependencies..."
-          rm -rf node_modules package-lock.json
-          npm install --include=optional --no-audit
-          echo "Rebuilding native modules like sharp..."
-          npm rebuild sharp
-          npm install --save-dev typescript @types/react
+           echo "Installing fresh dependencies..."
+            rm -rf node_modules package-lock.json
+            NODE_ENV=development npm install --include=optional --no-audit
+            echo "Rebuilding native modules like sharp..."
+            npm rebuild sharp
 
-      env:
-          NODE_ENV: production
 
     - name: Checkout code
       uses: actions/checkout@v4
@@ -80,15 +77,12 @@ jobs:
     
     - name: Install dependencies
       run: |
-          echo "Installing fresh dependencies..."
-          rm -rf node_modules package-lock.json
-          npm install --include=optional --no-audit
-          echo "Rebuilding native modules like sharp..."
-          npm rebuild sharp
-          npm install --save-dev typescript @types/react
+           echo "Installing fresh dependencies..."
+            rm -rf node_modules package-lock.json
+            NODE_ENV=development npm install --include=optional --no-audit
+            echo "Rebuilding native modules like sharp..."
+            npm rebuild sharp
 
-      env:
-          NODE_ENV: production
     
     - name: Quick security audit
       run: |
@@ -271,13 +265,9 @@ jobs:
       run: |
            echo "Installing fresh dependencies..."
             rm -rf node_modules package-lock.json
-            npm install --include=optional --no-audit
+            NODE_ENV=development npm install --include=optional --no-audit
             echo "Rebuilding native modules like sharp..."
             npm rebuild sharp
-            npm install --save-dev typescript @types/react
-            
-      env:
-          NODE_ENV: production
     
     - name: Build check
       run: |
