@@ -19,8 +19,12 @@ jobs:
     steps:
     - name: Clean up workspace before checkout
       run: |
-        echo "🧹 Cleaning workspace..."
-        sudo rm -rf * .next .turbo node_modules || true
+           echo "Installing fresh dependencies..."
+            rm -rf node_modules package-lock.json
+            NODE_ENV=development npm install --include=optional --no-audit
+            echo "Rebuilding native modules like sharp..."
+            npm rebuild sharp
+
 
     - name: Checkout code
       uses: actions/checkout@v4
@@ -73,8 +77,12 @@ jobs:
     
     - name: Install dependencies
       run: |
-        echo "Installing dependencies..."
-        npm i --save-dev --no-audit
+           echo "Installing fresh dependencies..."
+            rm -rf node_modules package-lock.json
+            NODE_ENV=development npm install --include=optional --no-audit
+            echo "Rebuilding native modules like sharp..."
+            npm rebuild sharp
+
     
     - name: Quick security audit
       run: |
@@ -119,7 +127,7 @@ jobs:
         rm -rf .next
         
         # Build with proper error handling
-        npm i --save-dev --no-audit
+        npm install --include=optional --save-dev --no-audit
         npm run build
         
         echo "✅ Build successful"
@@ -254,7 +262,12 @@ jobs:
         cache: 'npm'
     
     - name: Install dependencies
-      run: npm i --save-dev --no-audit
+      run: |
+           echo "Installing fresh dependencies..."
+            rm -rf node_modules package-lock.json
+            NODE_ENV=development npm install --include=optional --no-audit
+            echo "Rebuilding native modules like sharp..."
+            npm rebuild sharp
     
     - name: Build check
       run: |
@@ -262,7 +275,7 @@ jobs:
         npm run build
         echo "✅ Build successful"
       env:
-        NODE_ENV: development
+        NODE_ENV: production
         NEXT_PUBLIC_API_URL: https://pkkp-api.edunusa.co.id
         NEXT_TELEMETRY_DISABLED: 1
     
