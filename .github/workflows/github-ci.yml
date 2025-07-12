@@ -19,8 +19,11 @@ jobs:
     steps:
     - name: Clean up workspace before checkout
       run: |
-        echo "🧹 Cleaning workspace..."
-        sudo rm -rf * .next .turbo node_modules package-lock.json || true
+          echo "Installing fresh dependencies..."
+          rm -rf node_modules package-lock.json
+          npm install --include=optional --no-audit
+          echo "Rebuilding native modules like sharp..."
+          npm rebuild sharp
 
     - name: Checkout code
       uses: actions/checkout@v4
