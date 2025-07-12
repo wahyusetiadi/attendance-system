@@ -133,7 +133,7 @@ jobs:
         echo "✅ Build successful"
         echo "build_status=success" >> $GITHUB_OUTPUT
       env:
-        NODE_ENV: development
+        NODE_ENV: production
         BUILD_ENV: ${{ env.BUILD_ENV }}
         NEXT_PUBLIC_API_URL: ${{ env.NEXT_PUBLIC_API_URL }}
         NEXT_TELEMETRY_DISABLED: 1
