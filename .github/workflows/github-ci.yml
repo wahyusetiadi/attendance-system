@@ -66,7 +66,7 @@ jobs:
     - name: Install dependencies
       run: |
         echo "Installing dependencies..."
-        npm ci --prefer-offline --no-audit
+        npm i --save-dev --no-audit
     
     - name: Quick security audit
       run: |
@@ -111,7 +111,7 @@ jobs:
         rm -rf .next
         
         # Build with proper error handling
-        npm ci --prefer-offline --no-audit
+        npm i --save-dev --no-audit
         npm run build
         
         echo "✅ Build successful"
@@ -246,7 +246,7 @@ jobs:
         cache: 'npm'
     
     - name: Install dependencies
-      run: npm ci --prefer-offline --no-audit
+      run: npm i --save-dev --no-audit
     
     - name: Build check
       run: |
