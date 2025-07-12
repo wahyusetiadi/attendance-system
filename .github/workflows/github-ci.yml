@@ -257,7 +257,12 @@ jobs:
         cache: 'npm'
     
     - name: Install dependencies
-      run: npm install --include=optional --save-dev --no-audit
+      run: |
+           echo "Installing fresh dependencies..."
+            rm -rf node_modules package-lock.json
+            npm install --include=optional --no-audit
+            echo "Rebuilding native modules like sharp..."
+            npm rebuild sharp
     
     - name: Build check
       run: |
