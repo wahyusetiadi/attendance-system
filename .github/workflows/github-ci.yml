@@ -6,14 +6,22 @@ on:
     branches: [ development, staging-x ]
   pull_request:
     branches: [ development, staging-x ]
+env:
+  NODE_ENV: production
 
 jobs:
   build-and-deploy:
     name: Build and Deploy
     runs-on: [self-hosted]
+    environment: production
     if: github.event_name == 'push'
     
     steps:
+    - name: Clean up workspace before checkout
+      run: |
+        echo "🧹 Cleaning workspace..."
+        sudo rm -rf * .next .turbo node_modules || true
+
     - name: Checkout code
       uses: actions/checkout@v4
     
@@ -51,7 +59,7 @@ jobs:
         # Show deployment info
         echo "Deployment Configuration:"
         echo "Build Environment: $BUILD_ENV"
-        echo "Node Environment: production (for build)"
+        echo "Node Environment: development (for build)"
         echo "Domain: $DOMAIN_APPS"
         echo "Port: $PORT_EXPOSE_APPS"
         echo "API URL: $NEXT_PUBLIC_API_URL"
@@ -66,8 +74,12 @@ jobs:
     - name: Install dependencies
       run: |
         echo "Installing dependencies..."
-        npm ci --prefer-offline --no-audit
-    
+        npm ci
+        # Auto-install TypeScript if config exists
+        if [ -f "tsconfig.json" ]; then
+          npm install --save-dev typescript @types/react @types/node
+        fi
+        
     - name: Quick security audit
       run: |
         echo "Running security audit..."
@@ -111,13 +123,12 @@ jobs:
         rm -rf .next
         
         # Build with proper error handling
-        npm ci --prefer-offline --no-audit
         npm run build
         
         echo "✅ Build successful"
         echo "build_status=success" >> $GITHUB_OUTPUT
       env:
-        NODE_ENV: production
+        NODE_ENV: development
         BUILD_ENV: ${{ env.BUILD_ENV }}
         NEXT_PUBLIC_API_URL: ${{ env.NEXT_PUBLIC_API_URL }}
         NEXT_TELEMETRY_DISABLED: 1
@@ -246,7 +257,7 @@ jobs:
         cache: 'npm'
     
     - name: Install dependencies
-      run: npm ci --prefer-offline --no-audit
+      run: npm i 
     
     - name: Build check
       run: |
@@ -254,7 +265,7 @@ jobs:
         npm run build
         echo "✅ Build successful"
       env:
-        NODE_ENV: production
+        NODE_ENV: development
         NEXT_PUBLIC_API_URL: https://pkkp-api.edunusa.co.id
         NEXT_TELEMETRY_DISABLED: 1
     
