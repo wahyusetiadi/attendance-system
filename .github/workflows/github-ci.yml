@@ -24,6 +24,8 @@ jobs:
           npm install --include=optional --no-audit
           echo "Rebuilding native modules like sharp..."
           npm rebuild sharp
+      env:
+          NODE_ENV: development
 
     - name: Checkout code
       uses: actions/checkout@v4
@@ -76,8 +78,13 @@ jobs:
     
     - name: Install dependencies
       run: |
-        echo "Installing dependencies..."
-        npm install --include=optional --save-dev --no-audit
+          echo "Installing fresh dependencies..."
+          rm -rf node_modules package-lock.json
+          npm install --include=optional --no-audit
+          echo "Rebuilding native modules like sharp..."
+          npm rebuild sharp
+      env:
+          NODE_ENV: development
     
     - name: Quick security audit
       run: |
@@ -263,6 +270,8 @@ jobs:
             npm install --include=optional --no-audit
             echo "Rebuilding native modules like sharp..."
             npm rebuild sharp
+      env:
+          NODE_ENV: development
     
     - name: Build check
       run: |
