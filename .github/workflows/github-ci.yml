@@ -6,14 +6,22 @@ on:
     branches: [ development, staging-x ]
   pull_request:
     branches: [ development, staging-x ]
+env:
+  NODE_ENV: production
 
 jobs:
   build-and-deploy:
     name: Build and Deploy
     runs-on: [self-hosted]
+    environment: production
     if: github.event_name == 'push'
     
     steps:
+    - name: Clean up workspace before checkout
+      run: |
+        echo "🧹 Cleaning workspace..."
+        sudo rm -rf * .next .turbo node_modules || true
+
     - name: Checkout code
       uses: actions/checkout@v4
     
@@ -51,7 +59,7 @@ jobs:
         # Show deployment info
         echo "Deployment Configuration:"
         echo "Build Environment: $BUILD_ENV"
-        echo "Node Environment: production (for build)"
+        echo "Node Environment: development (for build)"
         echo "Domain: $DOMAIN_APPS"
         echo "Port: $PORT_EXPOSE_APPS"
         echo "API URL: $NEXT_PUBLIC_API_URL"
@@ -117,7 +125,7 @@ jobs:
         echo "✅ Build successful"
         echo "build_status=success" >> $GITHUB_OUTPUT
       env:
-        NODE_ENV: production
+        NODE_ENV: development
         BUILD_ENV: ${{ env.BUILD_ENV }}
         NEXT_PUBLIC_API_URL: ${{ env.NEXT_PUBLIC_API_URL }}
         NEXT_TELEMETRY_DISABLED: 1
@@ -254,7 +262,7 @@ jobs:
         npm run build
         echo "✅ Build successful"
       env:
-        NODE_ENV: production
+        NODE_ENV: development
         NEXT_PUBLIC_API_URL: https://pkkp-api.edunusa.co.id
         NEXT_TELEMETRY_DISABLED: 1
     
