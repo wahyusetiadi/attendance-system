@@ -74,12 +74,8 @@ jobs:
     - name: Install dependencies
       run: |
         echo "Installing dependencies..."
-        npm ci
-        # Auto-install TypeScript if config exists
-        if [ -f "tsconfig.json" ]; then
-          npm install --save-dev typescript @types/react @types/node
-        fi
-        
+        npm i --save-dev --no-audit
+    
     - name: Quick security audit
       run: |
         echo "Running security audit..."
@@ -123,6 +119,7 @@ jobs:
         rm -rf .next
         
         # Build with proper error handling
+        npm i --save-dev --no-audit
         npm run build
         
         echo "✅ Build successful"
@@ -257,7 +254,7 @@ jobs:
         cache: 'npm'
     
     - name: Install dependencies
-      run: npm i 
+      run: npm i --save-dev --no-audit
     
     - name: Build check
       run: |
