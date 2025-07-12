@@ -24,8 +24,10 @@ jobs:
           npm install --include=optional --no-audit
           echo "Rebuilding native modules like sharp..."
           npm rebuild sharp
+          npm install --save-dev typescript @types/react
+
       env:
-          NODE_ENV: development
+          NODE_ENV: production
 
     - name: Checkout code
       uses: actions/checkout@v4
@@ -83,8 +85,10 @@ jobs:
           npm install --include=optional --no-audit
           echo "Rebuilding native modules like sharp..."
           npm rebuild sharp
+          npm install --save-dev typescript @types/react
+
       env:
-          NODE_ENV: development
+          NODE_ENV: production
     
     - name: Quick security audit
       run: |
@@ -270,8 +274,10 @@ jobs:
             npm install --include=optional --no-audit
             echo "Rebuilding native modules like sharp..."
             npm rebuild sharp
+            npm install --save-dev typescript @types/react
+            
       env:
-          NODE_ENV: development
+          NODE_ENV: production
     
     - name: Build check
       run: |
@@ -279,7 +285,7 @@ jobs:
         npm run build
         echo "✅ Build successful"
       env:
-        NODE_ENV: development
+        NODE_ENV: production
         NEXT_PUBLIC_API_URL: https://pkkp-api.edunusa.co.id
         NEXT_TELEMETRY_DISABLED: 1
     
