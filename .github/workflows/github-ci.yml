@@ -20,7 +20,7 @@ jobs:
     - name: Clean up workspace before checkout
       run: |
         echo "🧹 Cleaning workspace..."
-        sudo rm -rf * .next .turbo node_modules || true
+        sudo rm -rf * .next .turbo node_modules package-lock.json || true
 
     - name: Checkout code
       uses: actions/checkout@v4
@@ -74,7 +74,7 @@ jobs:
     - name: Install dependencies
       run: |
         echo "Installing dependencies..."
-        npm install --save-dev --no-audit
+        npm install --include=optional --save-dev --no-audit
     
     - name: Quick security audit
       run: |
@@ -119,7 +119,7 @@ jobs:
         rm -rf .next
         
         # Build with proper error handling
-        npm install --save-dev --no-audit
+        npm install --include=optional --save-dev --no-audit
         npm run build
         
         echo "✅ Build successful"
@@ -254,7 +254,7 @@ jobs:
         cache: 'npm'
     
     - name: Install dependencies
-      run: npm install --save-dev --no-audit
+      run: npm install --include=optional --save-dev --no-audit
     
     - name: Build check
       run: |
