@@ -111,6 +111,7 @@ jobs:
         rm -rf .next
         
         # Build with proper error handling
+        npm ci --prefer-offline --no-audit
         npm run build
         
         echo "✅ Build successful"
