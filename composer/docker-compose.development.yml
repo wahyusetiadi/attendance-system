@@ -26,7 +26,7 @@ services:
 
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.itn-edunusa-paud-kanzul-khairat-fe-development.rule=Host(`staging-paud-kanzul-khairat-presensi.edunusa.co.id`)"
+      - "traefik.http.routers.itn-edunusa-paud-kanzul-khairat-fe-development.rule=Host(`development-paud-kanzul-khairat-presensi.edunusa.co.id`)"
       - "traefik.http.routers.itn-edunusa-paud-kanzul-khairat-fe-development.entrypoints=websecure"
       - "traefik.http.routers.itn-edunusa-paud-kanzul-khairat-fe-development.tls=true"
       - "traefik.http.routers.itn-edunusa-paud-kanzul-khairat-fe-development.tls.certresolver=mytlschallenge"
