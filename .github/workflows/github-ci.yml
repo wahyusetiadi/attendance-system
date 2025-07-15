@@ -3,9 +3,9 @@ name: Frontend CI/CD Pipeline
 
 on:
   push:
-    branches: [ development, staging-x ]
+    branches: [ development-x, staging-x ]
   pull_request:
-    branches: [ development, staging-x ]
+    branches: [ development-x, staging-x ]
 env:
   NODE_ENV: production
 
