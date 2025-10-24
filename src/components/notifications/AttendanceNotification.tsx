@@ -1,10 +1,17 @@
 // src/components/notifications/AttendanceNotificationBell.tsx
-'use client';
+"use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Bell, Clock, Calendar, CheckCircle, XCircle, MapPin } from 'lucide-react';
-import { attendanceAPI } from '@/api/api';
-import { AttendanceRecord } from '@/types/attendance';
+import React, { useState, useRef, useEffect } from "react";
+import {
+  Bell,
+  Clock,
+  Calendar,
+  CheckCircle,
+  XCircle,
+  MapPin,
+} from "lucide-react";
+import { attendanceAPI } from "@/api/api";
+import { AttendanceRecord } from "@/types/attendance";
 
 interface AttendanceNotificationBellProps {
   className?: string;
@@ -13,26 +20,32 @@ interface AttendanceNotificationBellProps {
 interface AttendanceNotification {
   id: number;
   teacherName: string;
-  type: 'check-in' | 'check-out';
+  type: "check-in" | "check-out";
   time: string;
   date: string;
-  status: 'HADIR' | 'TERLAMBAT' | 'TIDAK HADIR' | 'SAKIT' | 'IZIN';
+  status: "HADIR" | "TERLAMBAT" | "TIDAK HADIR" | "SAKIT" | "IZIN";
   location?: string;
   notes?: string;
   teacherNip?: string;
   timestamp: number;
 }
 
-export function AttendanceNotificationBell({ className = '' }: AttendanceNotificationBellProps) {
+export function AttendanceNotificationBell({
+  className = "",
+}: AttendanceNotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<AttendanceNotification[]>([]);
+  const [notifications, setNotifications] = useState<AttendanceNotification[]>(
+    []
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [readNotifications, setReadNotifications] = useState<Set<number>>(new Set());
+  const [readNotifications, setReadNotifications] = useState<Set<number>>(
+    new Set()
+  );
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Key for localStorage
-  const STORAGE_KEY = 'attendance_read_notifications';
+  const STORAGE_KEY = "attendance_read_notifications";
 
   // Load read notifications from localStorage
   useEffect(() => {
@@ -42,7 +55,7 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
         const readIds = JSON.parse(stored);
         setReadNotifications(new Set(readIds));
       } catch (error) {
-        console.error('Error parsing read notifications:', error);
+        console.error("Error parsing read notifications:", error);
       }
     }
   }, []);
@@ -55,7 +68,7 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
   // Mark all notifications as read
   const markAllAsRead = () => {
     const allIds = new Set<number>();
-    notifications.forEach(notification => {
+    notifications.forEach((notification) => {
       allIds.add(notification.id);
     });
     setReadNotifications(allIds);
@@ -65,19 +78,27 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
   // Convert timestamp to date string (YYYY-MM-DD)
   const timestampToDateString = (timestamp: number) => {
     const date = new Date(timestamp);
-    return date.toISOString().split('T')[0];
+    // Gunakan local timezone, bukan UTC
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   };
 
   // Convert timestamp to time string (HH:MM)
   const timestampToTimeString = (timestamp: number) => {
     const date = new Date(timestamp);
-    return date.toTimeString().split(' ')[0].substring(0, 5);
+    return date.toTimeString().split(" ")[0].substring(0, 5);
   };
 
   // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => {
     const today = new Date();
-    return today.toISOString().split('T')[0];
+    // Gunakan local timezone
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   };
 
   // Check if timestamp is from today
@@ -89,7 +110,9 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
 
   // Get unread notifications count
   const getUnreadCount = () => {
-    return notifications.filter(notification => !readNotifications.has(notification.id)).length;
+    return notifications.filter(
+      (notification) => !readNotifications.has(notification.id)
+    ).length;
   };
 
   // Fetch latest attendance data
@@ -101,8 +124,8 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
       const response = await attendanceAPI.getAll({
         page: 1,
         limit: 50,
-        sortBy: 'date',
-        sortOrder: 'desc'
+        sortBy: "date",
+        sortOrder: "desc",
       });
 
       if (response.success && response.data) {
@@ -110,7 +133,8 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
         const processedNotifications: AttendanceNotification[] = [];
 
         response.data.forEach((record: any) => {
-          const teacherName = record.teacher?.name || record.teacherName || 'Unknown';
+          const teacherName =
+            record.teacher?.name || record.teacherName || "Unknown";
           const teacherNip = record.teacher?.nip || record.teacherNip;
 
           // Check-in notification
@@ -119,13 +143,13 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
               id: record.id || 0,
               teacherName,
               teacherNip,
-              type: 'check-in',
+              type: "check-in",
               time: timestampToTimeString(record.checkIn),
               date: timestampToDateString(record.checkIn),
               status: record.status,
               location: record.location || undefined,
               notes: record.notes || undefined,
-              timestamp: record.checkIn
+              timestamp: record.checkIn,
             });
           }
 
@@ -135,13 +159,13 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
               id: (record.id || 0) + 1000,
               teacherName,
               teacherNip,
-              type: 'check-out',
+              type: "check-out",
               time: timestampToTimeString(record.checkOut),
               date: timestampToDateString(record.checkOut),
               status: record.status,
               location: record.location || undefined,
               notes: record.notes || undefined,
-              timestamp: record.checkOut
+              timestamp: record.checkOut,
             });
           }
         });
@@ -153,10 +177,10 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
 
         setNotifications(sortedNotifications);
       } else {
-        setError('Tidak ada data dari API');
+        setError("Tidak ada data dari API");
       }
     } catch (err: any) {
-      console.error('Error fetching attendance notifications:', err);
+      console.error("Error fetching attendance notifications:", err);
       setError(`Gagal memuat notifikasi: ${err.message}`);
     } finally {
       setLoading(false);
@@ -181,13 +205,16 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Fetch notifications when component mounts and every 30 seconds
@@ -201,12 +228,12 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
   // Clear old read notifications from localStorage (older than 7 days)
   useEffect(() => {
     const cleanupOldReadNotifications = () => {
-      const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-      const currentNotificationIds = new Set(notifications.map(n => n.id));
+      const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      const currentNotificationIds = new Set(notifications.map((n) => n.id));
 
       // Only keep read notifications for current notifications
       const cleanedReadNotifications = new Set<number>();
-      readNotifications.forEach(id => {
+      readNotifications.forEach((id) => {
         if (currentNotificationIds.has(id)) {
           cleanedReadNotifications.add(id);
         }
@@ -228,10 +255,12 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
     try {
       const now = new Date();
       const recordTime = new Date(timestamp);
-      const diffInMinutes = Math.floor((now.getTime() - recordTime.getTime()) / (1000 * 60));
+      const diffInMinutes = Math.floor(
+        (now.getTime() - recordTime.getTime()) / (1000 * 60)
+      );
 
       if (diffInMinutes < 1) {
-        return 'Baru saja';
+        return "Baru saja";
       } else if (diffInMinutes < 60) {
         return `${diffInMinutes} menit yang lalu`;
       } else {
@@ -239,19 +268,19 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
         return `${hoursAgo} jam yang lalu`;
       }
     } catch {
-      return 'Tidak diketahui';
+      return "Tidak diketahui";
     }
   };
 
   // Format time for display (native JavaScript)
   const formatTime = (timeString: string) => {
     try {
-      const [hours, minutes] = timeString.split(':');
+      const [hours, minutes] = timeString.split(":");
       const time = new Date();
       time.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-      return time.toLocaleTimeString('id-ID', {
-        hour: '2-digit',
-        minute: '2-digit'
+      return time.toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
       });
     } catch {
       return timeString;
@@ -262,10 +291,10 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('id-ID', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
+      return date.toLocaleDateString("id-ID", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
       });
     } catch {
       return dateString;
@@ -275,19 +304,19 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
   // Get current date display
   const getCurrentDateDisplay = () => {
     const today = new Date();
-    return today.toLocaleDateString('id-ID', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+    return today.toLocaleDateString("id-ID", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   };
 
   // Get status icon and color
   const getStatusIcon = (type: string, status: string) => {
-    if (type === 'check-in') {
+    if (type === "check-in") {
       return <CheckCircle className="h-4 w-4 text-green-500" />;
-    } else if (type === 'check-out') {
+    } else if (type === "check-out") {
       return <XCircle className="h-4 w-4 text-blue-500" />;
     }
     return <Clock className="h-4 w-4 text-gray-500" />;
@@ -296,24 +325,24 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
   // Get status color
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'HADIR':
-        return 'text-green-600 bg-green-100';
-      case 'TERLAMBAT':
-        return 'text-yellow-600 bg-yellow-100';
-      case 'TIDAK HADIR':
-        return 'text-red-600 bg-red-100';
-      case 'SAKIT':
-        return 'text-purple-600 bg-purple-100';
-      case 'IZIN':
-        return 'text-blue-600 bg-blue-100';
+      case "HADIR":
+        return "text-green-600 bg-green-100";
+      case "TERLAMBAT":
+        return "text-yellow-600 bg-yellow-100";
+      case "TIDAK HADIR":
+        return "text-red-600 bg-red-100";
+      case "SAKIT":
+        return "text-purple-600 bg-purple-100";
+      case "IZIN":
+        return "text-blue-600 bg-blue-100";
       default:
-        return 'text-gray-600 bg-gray-100';
+        return "text-gray-600 bg-gray-100";
     }
   };
 
   // Get notification text
   const getNotificationText = (notification: AttendanceNotification) => {
-    const action = notification.type === 'check-in' ? 'masuk' : 'keluar';
+    const action = notification.type === "check-in" ? "masuk" : "keluar";
     return `${notification.teacherName} ${action}`;
   };
 
@@ -345,8 +374,12 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
           <div className="p-4 border-b">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Notifikasi Absensi</h3>
-                <p className="text-xs text-gray-500">Hari ini - {getCurrentDateDisplay()}</p>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Notifikasi Absensi
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Hari ini - {getCurrentDateDisplay()}
+                </p>
               </div>
               <div className="flex items-center space-x-2">
                 {/* Mark all as read button */}
@@ -372,7 +405,9 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
             {loading ? (
               <div className="p-4 text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-                <p className="mt-2 text-sm text-gray-500">Memuat notifikasi hari ini...</p>
+                <p className="mt-2 text-sm text-gray-500">
+                  Memuat notifikasi hari ini...
+                </p>
               </div>
             ) : error ? (
               <div className="p-4 text-center">
@@ -387,7 +422,9 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
             ) : notifications.length === 0 ? (
               <div className="p-4 text-center">
                 <Bell className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">Tidak ada notifikasi absensi hari ini</p>
+                <p className="text-sm text-gray-500">
+                  Tidak ada notifikasi absensi hari ini
+                </p>
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
@@ -397,19 +434,24 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
                     <div
                       key={notification.id}
                       className={`p-4 hover:bg-gray-50 transition-colors ${
-                        !isRead ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                        !isRead ? "bg-blue-50 border-l-4 border-blue-500" : ""
                       }`}
                     >
                       <div className="flex items-start space-x-3">
                         <div className="flex-shrink-0 mt-1">
-                          {getStatusIcon(notification.type, notification.status)}
+                          {getStatusIcon(
+                            notification.type,
+                            notification.status
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
                             <div className="flex-1 flex items-center space-x-2">
-                              <p className={`text-sm font-medium truncate ${
-                                !isRead ? 'text-gray-900' : 'text-gray-700'
-                              }`}>
+                              <p
+                                className={`text-sm font-medium truncate ${
+                                  !isRead ? "text-gray-900" : "text-gray-700"
+                                }`}
+                              >
                                 {getNotificationText(notification)}
                               </p>
                               {!isRead && (
@@ -429,7 +471,11 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
 
                           {/* Status Badge */}
                           <div className="mt-2">
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(notification.status)}`}>
+                            <span
+                              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                                notification.status
+                              )}`}
+                            >
                               {notification.status}
                             </span>
                           </div>
@@ -482,7 +528,7 @@ export function AttendanceNotificationBell({ className = '' }: AttendanceNotific
               disabled={loading}
               className="w-full text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400"
             >
-              {loading ? 'Memuat...' : 'Refresh'}
+              {loading ? "Memuat..." : "Refresh"}
             </button>
           </div>
         </div>

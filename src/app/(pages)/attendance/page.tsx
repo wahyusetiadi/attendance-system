@@ -678,6 +678,7 @@ export default function AttendancePage() {
             data={paginatedData}
             onRefresh={handleRefresh}
             isLoading={isLoadingData}
+            showDeleteAction={true}
             onUpdateRecord={handleUpdateRecord}
             onDeleteRecord={async (id) => {
               const result = await deleteRecord(id);

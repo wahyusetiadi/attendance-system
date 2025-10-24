@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   
   // Disable telemetry
-  telemetry: false,
+  // telemetry: false,
   
   // API rewrites
   async rewrites() {

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { PencilIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, ChevronLeftIcon, ChevronRightIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { Pagination, Teacher } from '@/types/teacher';
 
 interface TeacherListProps {
@@ -144,6 +144,16 @@ export function TeacherList({
                   >
                     <PencilIcon className="h-4 w-4" />
                   </Button>
+                  {teacher.id && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="cursor-pointer p-2"
+                      onClick={() => onDelete(teacher.id!)}
+                    >
+                      <TrashIcon className="text-red-500 h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

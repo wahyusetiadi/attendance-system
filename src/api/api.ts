@@ -137,7 +137,7 @@ export const teachersAPI = {
   delete: async (
     id: number
   ): Promise<{ success: boolean; message: string }> => {
-    const response = await api.delete(`/teachers/${id}`);
+    const response = await api.delete(`/teachers/${id}/delete`);
     return response.data;
   },
 
