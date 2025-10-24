@@ -213,7 +213,7 @@ export default function TeachersPage() {
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
-            {/* <Button onClick={handleAdd}>Tambah guru</Button> */}
+            <Button onClick={handleAdd}>Tambah guru</Button>
           </div>
         </div>
 

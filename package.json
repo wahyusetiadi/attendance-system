@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack --port 6006",
+    "dev": "next dev --port 6006",
     "build": "next build",
     "start": "next start --port 6006",
     "lint": "next lint"
