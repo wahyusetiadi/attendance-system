@@ -3,9 +3,9 @@ name: Frontend CI/CD Pipeline
 
 on:
   push:
-    branches: [ development-x, staging-x ]
+    branches: [development-x, staging-x]
   pull_request:
-    branches: [ development-x, staging-x ]
+    branches: [development-x, staging-x]
 env:
   NODE_ENV: production
 
@@ -15,204 +15,161 @@ jobs:
     runs-on: [self-hosted]
     environment: production
     if: github.event_name == 'push'
-    
+
     steps:
-    - name: Clean up workspace before checkout
-      run: |
-           echo "Installing fresh dependencies..."
-            rm -rf node_modules package-lock.json
-            NODE_ENV=development npm install --include=optional --no-audit
-            echo "Rebuilding native modules like sharp..."
-            npm rebuild sharp
+      - name: Clean up workspace before checkout
+        run: |
+          echo "Installing fresh dependencies..."
+           rm -rf node_modules package-lock.json
+           NODE_ENV=development npm install --include=optional --no-audit
+           echo "Rebuilding native modules like sharp..."
+           npm rebuild sharp
 
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Set environment variables
-      run: |
-        # Set branch-specific variables
-        if [[ "${{ github.ref }}" == "refs/heads/development" ]]; then
-          echo "DOMAIN_APPS=development-paud-kanzul-khairat-presensi.edunusa.co.id" >> $GITHUB_ENV
-          echo "PORT_EXPOSE_APPS=3501" >> $GITHUB_ENV
-          echo "BUILD_ENV=development" >> $GITHUB_ENV
-          echo "IMAGE_TAG=development" >> $GITHUB_ENV
-          echo "NEXT_PUBLIC_API_URL=https://development-pkkp-api.edunusa.co.id" >> $GITHUB_ENV
-        elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
-          echo "DOMAIN_APPS=staging-paud-kanzul-khairat-presensi.edunusa.co.id" >> $GITHUB_ENV
-          echo "PORT_EXPOSE_APPS=3503" >> $GITHUB_ENV
-          echo "BUILD_ENV=staging" >> $GITHUB_ENV
-          echo "IMAGE_TAG=staging" >> $GITHUB_ENV
-          echo "NEXT_PUBLIC_API_URL=https://staging-pkkp-api.edunusa.co.id" >> $GITHUB_ENV
-        elif [[ "${{ github.ref }}" == "refs/heads/production" ]]; then
-          echo "DOMAIN_APPS=paud-kanzul-khairat-presensi.edunusa.co.id" >> $GITHUB_ENV
-          echo "PORT_EXPOSE_APPS=3505" >> $GITHUB_ENV
-          echo "BUILD_ENV=production" >> $GITHUB_ENV
-          echo "IMAGE_TAG=production" >> $GITHUB_ENV
-          echo "NEXT_PUBLIC_API_URL=https://pkkp-api.edunusa.co.id" >> $GITHUB_ENV
-        fi
-        
-        # Set common variables (ALWAYS production for Next.js build)
-        echo "NODE_ENV=production" >> $GITHUB_ENV
-        echo "PORT_CONTAINER=3000" >> $GITHUB_ENV
-        echo "REGISTRY=ghcr.io" >> $GITHUB_ENV
-        echo "IMAGE_NAME=$(basename "${{ github.repository }}")-${GITHUB_REF##*/}-img" >> $GITHUB_ENV
-        echo "CONTAINER_NAME=$(basename "${{ github.repository }}")-${GITHUB_REF##*/}-ctr" >> $GITHUB_ENV
-        echo "SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_ENV
-        
-        # Show deployment info
-        echo "Deployment Configuration:"
-        echo "Build Environment: $BUILD_ENV"
-        echo "Node Environment: development (for build)"
-        echo "Domain: $DOMAIN_APPS"
-        echo "Port: $PORT_EXPOSE_APPS"
-        echo "API URL: $NEXT_PUBLIC_API_URL"
-        echo "Container: $CONTAINER_NAME"
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18.x'
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: |
-           echo "Installing fresh dependencies..."
-            rm -rf node_modules package-lock.json
-            NODE_ENV=development npm install --include=optional --no-audit
-            echo "Rebuilding native modules like sharp..."
-            npm rebuild sharp
-
-    
-    - name: Quick security audit
-      run: |
-        echo "Running security audit..."
-        npm audit --audit-level=high || echo "Security audit completed with warnings"
-    
-    - name: Debug project structure
-      run: |
-        echo "=== Debugging project structure ==="
-        echo "Current directory: $(pwd)"
-        echo "Directory contents:"
-        ls -la
-        
-        echo -e "\nChecking routing structure:"
-        if [ -d "app" ]; then
-          echo "✅ App Router detected"
-          echo "App directory contents:"
-          find app -type f -name "*.tsx" -o -name "*.ts" | head -10
-        elif [ -d "src/app" ]; then
-          echo "✅ App Router with src/ detected"
-          echo "App directory contents:"
-          find src/app -type f -name "*.tsx" -o -name "*.ts" | head -10
-        elif [ -d "pages" ] || [ -d "src/pages" ]; then
-          echo "✅ Pages Router detected"
-          echo "Pages directory contents:"
-          find pages src/pages -type f -name "*.tsx" -o -name "*.ts" 2>/dev/null | head -10
-        else
-          echo "❌ No routing structure found"
-        fi
-        
-        echo -e "\nChecking for problematic imports:"
-        find . -name "*.tsx" -o -name "*.ts" | xargs grep -l "next/document" 2>/dev/null | grep -v node_modules || echo "No next/document imports found"
-    
-    - name: Build application
-      run: |
-        echo "Building application..."
-        echo "NODE_ENV: $NODE_ENV (for build process)"
-        echo "BUILD_ENV: $BUILD_ENV (target environment)"
-        echo "NEXT_PUBLIC_API_URL: $NEXT_PUBLIC_API_URL"
-        
-        # Clean previous build
-        rm -rf .next
-        
-        # Build with proper error handling
-        NODE_ENV=development npm install --include=optional --no-audit
-        npm run build
-        
-        echo "✅ Build successful"
-        echo "build_status=success" >> $GITHUB_OUTPUT
-
-      env:
-        NODE_ENV: production
-        BUILD_ENV: ${{ env.BUILD_ENV }}
-        NEXT_PUBLIC_API_URL: ${{ env.NEXT_PUBLIC_API_URL }}
-        NEXT_TELEMETRY_DISABLED: 1
-    
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    
-    - name: Login to GitHub Container Registry
-      run: |
-        echo "Logging into GitHub Container Registry..."
-        echo "${{ secrets.GITHUB_TOKEN }}" | docker login $REGISTRY -u ${{ github.actor }} --password-stdin
-    
-    - name: Build and push Docker image
-      run: |
-        echo "Building and pushing Docker image..."
-        docker build \
-          --build-arg NODE_ENV=production \
-          --build-arg BUILD_ENV=$BUILD_ENV \
-          --build-arg NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
-          --build-arg NEXT_TELEMETRY_DISABLED=1 \
-          -t $REGISTRY/$IMAGE_NAME:$IMAGE_TAG \
-          -t $REGISTRY/$IMAGE_NAME:$IMAGE_TAG-$SHORT_SHA \
-          .
-        
-        docker push $REGISTRY/$IMAGE_NAME:$IMAGE_TAG
-        docker push $REGISTRY/$IMAGE_NAME:$IMAGE_TAG-$SHORT_SHA
-    
-    - name: Stop old container
-      run: |
-        echo "Stopping old container..."
-        docker stop $CONTAINER_NAME || true
-        docker rm $CONTAINER_NAME || true
-        sleep 5
-    
-    - name: Deploy new container
-      run: |
-        echo "Deploying new container..."
-        docker run -d \
-          --name $CONTAINER_NAME \
-          --restart unless-stopped \
-          -p $PORT_EXPOSE_APPS:$PORT_CONTAINER \
-          -e NODE_ENV=production \
-          -e BUILD_ENV=$BUILD_ENV \
-          -e PORT=$PORT_CONTAINER \
-          -e NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
-          --label "traefik.enable=true" \
-          --label "traefik.http.routers.$CONTAINER_NAME.rule=Host(\`$DOMAIN_APPS\`)" \
-          --label "traefik.http.services.$CONTAINER_NAME.loadbalancer.server.port=$PORT_CONTAINER" \
-          $REGISTRY/$IMAGE_NAME:$IMAGE_TAG
-    
-    - name: Health check
-      run: |
-        echo "Running health check..."
-        for i in {1..20}; do
-          if curl -f -s http://localhost:$PORT_EXPOSE_APPS/ > /dev/null 2>&1; then
-            echo "Health check passed!"
-            break
+      - name: Set environment variables
+        run: |
+          # Set branch-specific variables
+          if [[ "${{ github.ref }}" == "refs/heads/development" ]]; then
+            echo "DOMAIN_APPS=development-paud-kanzul-khairat-presensi.edunusa.co.id" >> $GITHUB_ENV
+            echo "PORT_EXPOSE_APPS=3501" >> $GITHUB_ENV
+            echo "BUILD_ENV=development" >> $GITHUB_ENV
+            echo "IMAGE_TAG=development" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_API_URL=https://development-pkkp-api.edunusa.co.id" >> $GITHUB_ENV
+          elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
+            echo "DOMAIN_APPS=staging-paud-kanzul-khairat-presensi.edunusa.co.id" >> $GITHUB_ENV
+            echo "PORT_EXPOSE_APPS=3503" >> $GITHUB_ENV
+            echo "BUILD_ENV=staging" >> $GITHUB_ENV
+            echo "IMAGE_TAG=staging" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_API_URL=https://staging-pkkp-api.edunusa.co.id" >> $GITHUB_ENV
+          elif [[ "${{ github.ref }}" == "refs/heads/production" ]]; then
+            echo "DOMAIN_APPS=paud-kanzul-khairat-presensi.edunusa.co.id" >> $GITHUB_ENV
+            echo "PORT_EXPOSE_APPS=3505" >> $GITHUB_ENV
+            echo "BUILD_ENV=production" >> $GITHUB_ENV
+            echo "IMAGE_TAG=production" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_API_URL=https://pkkp-api.edunusa.co.id" >> $GITHUB_ENV
           fi
-          echo "Waiting... ($i/20)"
-          sleep 10
-        done
-        
-        if ! curl -f -s http://localhost:$PORT_EXPOSE_APPS/ > /dev/null 2>&1; then
-          echo "Health check failed!"
-          echo "Container logs:"
-          docker logs $CONTAINER_NAME
-          exit 1
-        fi
 
-    - name: Rollback on failure
-      if: failure()
-      run: |
-        echo "⚠️ Deployment failed, rolling back..."
-        PREV_IMAGE=$(docker images $REGISTRY/$IMAGE_NAME --format "{{.Repository}}:{{.Tag}}" | grep -v "$IMAGE_TAG" | head -n 1)
-        if [ -n "$PREV_IMAGE" ]; then
-          echo "Rolling back to $PREV_IMAGE"
+          # Set common variables (ALWAYS production for Next.js build)
+          echo "NODE_ENV=production" >> $GITHUB_ENV
+          echo "PORT_CONTAINER=3000" >> $GITHUB_ENV
+          echo "REGISTRY=ghcr.io" >> $GITHUB_ENV
+          echo "IMAGE_NAME=$(basename "${{ github.repository }}")-${GITHUB_REF##*/}-img" >> $GITHUB_ENV
+          echo "CONTAINER_NAME=$(basename "${{ github.repository }}")-${GITHUB_REF##*/}-ctr" >> $GITHUB_ENV
+          echo "SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_ENV
+
+          # Show deployment info
+          echo "Deployment Configuration:"
+          echo "Build Environment: $BUILD_ENV"
+          echo "Node Environment: development (for build)"
+          echo "Domain: $DOMAIN_APPS"
+          echo "Port: $PORT_EXPOSE_APPS"
+          echo "API URL: $NEXT_PUBLIC_API_URL"
+          echo "Container: $CONTAINER_NAME"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18.x"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: |
+          echo "Installing fresh dependencies..."
+           rm -rf node_modules package-lock.json
+           NODE_ENV=development npm install --include=optional --no-audit
+           echo "Rebuilding native modules like sharp..."
+           npm rebuild sharp
+
+      - name: Quick security audit
+        run: |
+          echo "Running security audit..."
+          npm audit --audit-level=high || echo "Security audit completed with warnings"
+
+      - name: Debug project structure
+        run: |
+          echo "=== Debugging project structure ==="
+          echo "Current directory: $(pwd)"
+          echo "Directory contents:"
+          ls -la
+
+          echo -e "\nChecking routing structure:"
+          if [ -d "app" ]; then
+            echo "✅ App Router detected"
+            echo "App directory contents:"
+            find app -type f -name "*.tsx" -o -name "*.ts" | head -10
+          elif [ -d "src/app" ]; then
+            echo "✅ App Router with src/ detected"
+            echo "App directory contents:"
+            find src/app -type f -name "*.tsx" -o -name "*.ts" | head -10
+          elif [ -d "pages" ] || [ -d "src/pages" ]; then
+            echo "✅ Pages Router detected"
+            echo "Pages directory contents:"
+            find pages src/pages -type f -name "*.tsx" -o -name "*.ts" 2>/dev/null | head -10
+          else
+            echo "❌ No routing structure found"
+          fi
+
+          echo -e "\nChecking for problematic imports:"
+          find . -name "*.tsx" -o -name "*.ts" | xargs grep -l "next/document" 2>/dev/null | grep -v node_modules || echo "No next/document imports found"
+
+      - name: Build application
+        run: |
+          echo "Building application..."
+          echo "NODE_ENV: $NODE_ENV (for build process)"
+          echo "BUILD_ENV: $BUILD_ENV (target environment)"
+          echo "NEXT_PUBLIC_API_URL: $NEXT_PUBLIC_API_URL"
+
+          # Clean previous build
+          rm -rf .next
+
+          # Build with proper error handling
+          NODE_ENV=development npm install --include=optional --no-audit
+          npm run build
+
+          echo "✅ Build successful"
+          echo "build_status=success" >> $GITHUB_OUTPUT
+
+        env:
+          NODE_ENV: production
+          BUILD_ENV: ${{ env.BUILD_ENV }}
+          NEXT_PUBLIC_API_URL: ${{ env.NEXT_PUBLIC_API_URL }}
+          NEXT_TELEMETRY_DISABLED: 1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        run: |
+          echo "Logging into GitHub Container Registry..."
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login $REGISTRY -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push Docker image
+        run: |
+          echo "Building and pushing Docker image..."
+          docker build \
+            --build-arg NODE_ENV=production \
+            --build-arg BUILD_ENV=$BUILD_ENV \
+            --build-arg NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+            --build-arg NEXT_TELEMETRY_DISABLED=1 \
+            -t $REGISTRY/$IMAGE_NAME:$IMAGE_TAG \
+            -t $REGISTRY/$IMAGE_NAME:$IMAGE_TAG-$SHORT_SHA \
+            .
+
+          docker push $REGISTRY/$IMAGE_NAME:$IMAGE_TAG
+          docker push $REGISTRY/$IMAGE_NAME:$IMAGE_TAG-$SHORT_SHA
+
+      - name: Stop old container
+        run: |
+          echo "Stopping old container..."
           docker stop $CONTAINER_NAME || true
           docker rm $CONTAINER_NAME || true
+          sleep 5
+
+      - name: Deploy new container
+        run: |
+          echo "Deploying new container..."
           docker run -d \
             --name $CONTAINER_NAME \
             --restart unless-stopped \
@@ -221,66 +178,107 @@ jobs:
             -e BUILD_ENV=$BUILD_ENV \
             -e PORT=$PORT_CONTAINER \
             -e NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
-            $PREV_IMAGE
-        else
-          echo "No previous image found to rollback"
-        fi
-    
-    - name: Cleanup old images
-      run: |
-        echo "Cleaning up old images..."
-        docker image prune -f
-        docker images $REGISTRY/$IMAGE_NAME --format "{{.ID}}" | tail -n +4 | xargs -r docker rmi || true
-    
-    - name: Deployment summary
-      run: |
-        echo "Deployment Summary"
-        echo "=================="
-        echo "Branch: ${{ github.ref_name }}"
-        echo "Build Environment: $BUILD_ENV"
-        echo "Node Environment: production"
-        echo "Domain: $DOMAIN_APPS"
-        echo "Port: $PORT_EXPOSE_APPS"
-        echo "API URL: $NEXT_PUBLIC_API_URL"
-        echo "Container: $CONTAINER_NAME"
-        echo "Image: $REGISTRY/$IMAGE_NAME:$IMAGE_TAG"
-        echo "Status: Deployed"
-        echo "URL: http://$DOMAIN_APPS"
+            --label "traefik.enable=true" \
+            --label "traefik.http.routers.$CONTAINER_NAME.rule=Host(\`$DOMAIN_APPS\`)" \
+            --label "traefik.http.services.$CONTAINER_NAME.loadbalancer.server.port=$PORT_CONTAINER" \
+            $REGISTRY/$IMAGE_NAME:$IMAGE_TAG
+
+      - name: Health check
+        run: |
+          echo "Running health check..."
+          for i in {1..20}; do
+            if curl -f -s http://localhost:$PORT_EXPOSE_APPS/ > /dev/null 2>&1; then
+              echo "Health check passed!"
+              break
+            fi
+            echo "Waiting... ($i/20)"
+            sleep 10
+          done
+
+          if ! curl -f -s http://localhost:$PORT_EXPOSE_APPS/ > /dev/null 2>&1; then
+            echo "Health check failed!"
+            echo "Container logs:"
+            docker logs $CONTAINER_NAME
+            exit 1
+          fi
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "⚠️ Deployment failed, rolling back..."
+          PREV_IMAGE=$(docker images $REGISTRY/$IMAGE_NAME --format "{{.Repository}}:{{.Tag}}" | grep -v "$IMAGE_TAG" | head -n 1)
+          if [ -n "$PREV_IMAGE" ]; then
+            echo "Rolling back to $PREV_IMAGE"
+            docker stop $CONTAINER_NAME || true
+            docker rm $CONTAINER_NAME || true
+            docker run -d \
+              --name $CONTAINER_NAME \
+              --restart unless-stopped \
+              -p $PORT_EXPOSE_APPS:$PORT_CONTAINER \
+              -e NODE_ENV=production \
+              -e BUILD_ENV=$BUILD_ENV \
+              -e PORT=$PORT_CONTAINER \
+              -e NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+              $PREV_IMAGE
+          else
+            echo "No previous image found to rollback"
+          fi
+
+      - name: Cleanup old images
+        run: |
+          echo "Cleaning up old images..."
+          docker image prune -f
+          docker images $REGISTRY/$IMAGE_NAME --format "{{.ID}}" | tail -n +4 | xargs -r docker rmi || true
+
+      - name: Deployment summary
+        run: |
+          echo "Deployment Summary"
+          echo "=================="
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Build Environment: $BUILD_ENV"
+          echo "Node Environment: production"
+          echo "Domain: $DOMAIN_APPS"
+          echo "Port: $PORT_EXPOSE_APPS"
+          echo "API URL: $NEXT_PUBLIC_API_URL"
+          echo "Container: $CONTAINER_NAME"
+          echo "Image: $REGISTRY/$IMAGE_NAME:$IMAGE_TAG"
+          echo "Status: Deployed"
+          echo "URL: http://$DOMAIN_APPS"
 
   validate-pr:
     name: Validate PR
     runs-on: [self-hosted]
     if: github.event_name == 'pull_request'
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18.x'
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: |
-           echo "Installing fresh dependencies..."
-            rm -rf node_modules package-lock.json
-            NODE_ENV=development npm install --include=optional --no-audit
-            echo "Rebuilding native modules like sharp..."
-            npm rebuild sharp
-    
-    - name: Build check
-      run: |
-        echo "Testing build..."
-        npm run build
-        echo "✅ Build successful"
-      env:
-        NODE_ENV: production
-        NEXT_PUBLIC_API_URL: https://pkkp-api.edunusa.co.id
-        NEXT_TELEMETRY_DISABLED: 1
-    
-    - name: PR validation complete
-      run: |
-        echo "✅ PR validation passed!"
-        echo "Ready for merge to ${{ github.base_ref }}"
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18.x"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: |
+          echo "Installing fresh dependencies..."
+           rm -rf node_modules package-lock.json
+           NODE_ENV=development npm install --include=optional --no-audit
+           echo "Rebuilding native modules like sharp..."
+           npm rebuild sharp
+
+      - name: Build check
+        run: |
+          echo "Testing build..."
+          npm run build
+          echo "✅ Build successful"
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_API_URL: https://pkkp-api.edunusa.co.id
+          NEXT_TELEMETRY_DISABLED: 1
+
+      - name: PR validation complete
+        run: |
+          echo "✅ PR validation passed!"
+          echo "Ready for merge to ${{ github.base_ref }}"
