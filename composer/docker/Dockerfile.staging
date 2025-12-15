@@ -1,6 +1,6 @@
-# ======================
-# Builder
-# ======================
+# =====================
+# BUILD STAGE
+# =====================
 FROM node:18-alpine AS builder
 WORKDIR /app
 
@@ -9,7 +9,7 @@ RUN npm ci
 
 COPY . .
 
-ARG NODE_ENV=production
+ARG NODE_ENV
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_TELEMETRY_DISABLED
 
@@ -19,10 +19,9 @@ ENV NEXT_TELEMETRY_DISABLED=$NEXT_TELEMETRY_DISABLED
 
 RUN npm run build
 
-
-# ======================
-# Runner
-# ======================
+# =====================
+# RUNTIME STAGE
+# =====================
 FROM node:18-alpine AS runner
 WORKDIR /app
 
@@ -32,15 +31,20 @@ RUN apk add --no-cache tzdata \
  && echo "Asia/Makassar" > /etc/timezone
 
 # non-root user
-RUN addgroup -g 1001 nodejs \
- && adduser -D -u 1001 -G nodejs nextjs
+RUN addgroup -S nodejs -g 1001 \
+ && adduser -S nextjs -u 1001
 
-# copy ONLY standalone output
-COPY --chown=nextjs:nodejs --from=builder /app/.next/standalone ./
-COPY --chown=nextjs:nodejs --from=builder /app/.next/static ./.next/static
-COPY --chown=nextjs:nodejs --from=builder /app/public ./public
+# copy app
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/next.config.* ./
+
+# fix ownership
+RUN chown -R nextjs:nodejs /app
 
 USER nextjs
+ENV NODE_ENV=production
 
-EXPOSE 6006
-CMD ["node", "server.js"]
+CMD ["node", "node_modules/next/dist/bin/next", "start", "-p", "6006"]
