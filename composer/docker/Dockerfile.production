@@ -1,64 +1,47 @@
-# Step 1: Build stage
+# ======================
+# 1. Builder
+# ======================
 FROM node:18-alpine AS builder
-
 WORKDIR /app
 
-# Salin file package.json dan lock file
 COPY package*.json ./
-COPY package-lock.json ./
+RUN npm ci
 
-# Install production dependencies
-RUN npm ci --only=production --ignore-scripts
-
-# Install dev dependencies untuk build
-RUN npm install --only=development
-
-# Salin seluruh source code
 COPY . .
 
-# ====== Tambahan Penting untuk Build ARG/ENV ======
-# Ambil variabel dari docker-compose
 ARG NODE_ENV
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_TELEMETRY_DISABLED
 
-# Promote ARG jadi ENV agar terbaca saat build
 ENV NODE_ENV=$NODE_ENV
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=$NEXT_TELEMETRY_DISABLED
 
-# Debug (opsional, bisa dihapus)
-RUN echo "📦 NEXT_PUBLIC_API_URL: $NEXT_PUBLIC_API_URL"
-
-# Build Next.js
 RUN npm run build
 
-# Step 2: Production stage
-FROM node:18-alpine AS runner
 
+# ======================
+# 2. Runner
+# ======================
+FROM node:18-alpine AS runner
 WORKDIR /app
 
-# Install Timezone data and set Asia/Makassar timezone
+# timezone
 RUN apk add --no-cache tzdata && \
     cp /usr/share/zoneinfo/Asia/Makassar /etc/localtime && \
     echo "Asia/Makassar" > /etc/timezone
 
-# Buat user non-root untuk keamanan
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# non-root user
+RUN addgroup -g 1001 nodejs && \
+    adduser -D -u 1001 -G nodejs nextjs
 
-# Salin file runtime yang dibutuhkan dengan ownership langsung
+# copy ONLY standalone output
+COPY --chown=nextjs:nodejs --from=builder /app/.next/standalone ./
+COPY --chown=nextjs:nodejs --from=builder /app/.next/static ./.next/static
 COPY --chown=nextjs:nodejs --from=builder /app/public ./public
-COPY --chown=nextjs:nodejs --from=builder /app/.next ./.next
-COPY --chown=nextjs:nodejs --from=builder /app/package.json ./package.json
-COPY --chown=nextjs:nodejs --from=builder /app/next.config.* ./
-COPY --chown=nextjs:nodejs --from=builder /app/package*.json ./
 
-# Install hanya production dependencies
-RUN npm ci --only=production && npm cache clean --force
-
-# Jalankan dengan user non-root
 USER nextjs
 
-# Jalankan aplikasi
-CMD ["npm", "start"]
+EXPOSE 6006
+
+CMD ["node", "server.js"]
