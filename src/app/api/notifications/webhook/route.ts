@@ -2,7 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 declare global {
-  var pendingNotifications: any[];
+  // eslint-disable-next-line no-var
+  var pendingNotifications: Array<Record<string, unknown>> | undefined;
 }
 
 // Inisialisasi global storage
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
     console.log('🚀 === WEBHOOK CALLED ===');
     console.log('📋 Request headers:', Object.fromEntries(request.headers.entries()));
     console.log('🌐 Request URL:', request.url);
-    console.log('📊 Current pending notifications count:', global.pendingNotifications.length);
+    console.log('📊 Current pending notifications count:', global.pendingNotifications?.length || 0);
 
     const rawBody = await request.text();
     console.log('📦 Raw request body:', rawBody);
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     // Tambahkan timestamp untuk ID yang lebih unik
     const uniqueId = `notification-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    const formattedNotification = {
+    const formattedNotification: Record<string, unknown> = {
       id: notification.id || uniqueId,
       studentId: notification.studentId || notification.teacherId,
       studentName: notification.studentName || notification.teacherName,
@@ -55,21 +56,24 @@ export async function POST(request: NextRequest) {
     console.log('✅ Formatted notification:', formattedNotification);
 
     // Tambahkan ke global storage tanpa duplikasi check dulu untuk debugging
-    global.pendingNotifications.push(formattedNotification);
+    global.pendingNotifications!.push(formattedNotification);
 
-    console.log('📈 Notification added. Total notifications:', global.pendingNotifications.length);
-    console.log('📝 All pending notifications:', global.pendingNotifications.map(n => ({
-      id: n.id,
-      studentName: n.studentName,
-      type: n.type,
-      timestamp: n.timestamp
-    })));
+    console.log('📈 Notification added. Total notifications:', global.pendingNotifications!.length);
+    console.log(
+      '📝 All pending notifications:',
+      global.pendingNotifications!.map((n) => ({
+        id: n.id,
+        studentName: n.studentName,
+        type: n.type,
+        timestamp: n.timestamp,
+      }))
+    );
 
     return NextResponse.json({
       success: true,
       message: 'Notification received successfully',
       notificationId: formattedNotification.id,
-      totalPending: global.pendingNotifications.length
+      totalPending: global.pendingNotifications!.length
     });
   } catch (error) {
     console.error('❌ Webhook Error:', error);

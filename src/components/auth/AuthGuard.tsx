@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePathname } from 'next/navigation';
+import { initMockDevtools } from '@/mock/devtoolsClient';
 
 const publicRoutes = ['/login', '/register', '/forgot-password'];
 
@@ -13,6 +14,10 @@ interface AuthGuardProps {
 export function AuthGuard({ children }: AuthGuardProps) {
   const { isAuthenticated, isLoading } = useAuth();
   const pathname = usePathname();
+
+  useEffect(() => {
+    initMockDevtools();
+  }, []);
 
   const isPublicRoute = publicRoutes.includes(pathname);
 

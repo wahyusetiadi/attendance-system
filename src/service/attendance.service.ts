@@ -1,13 +1,9 @@
 // src/service/attendance.service.ts
 import { AttendanceData } from '@/types/attendance';
+import { getApiMode } from '@/lib/apiMode';
+import { getLatestAttendanceData, mockAttendanceAPI } from '@/mock/api';
 
 class AttendanceService {
-  private baseUrl: string;
-
-  constructor() {
-    this.baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-  }
-
   private getAuthToken(): string | null {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem('authToken');
@@ -16,7 +12,7 @@ class AttendanceService {
   private async fetchWithAuth(endpoint: string, options: RequestInit = {}): Promise<Response> {
     const token = this.getAuthToken();
 
-    return fetch(`${this.baseUrl}${endpoint}`, {
+    return fetch(endpoint, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
@@ -27,6 +23,10 @@ class AttendanceService {
   }
 
   async getLatestAttendance(limit: number = 50): Promise<AttendanceData[]> {
+    if (getApiMode() === 'mock') {
+      return getLatestAttendanceData(limit);
+    }
+
     try {
       const response = await this.fetchWithAuth(`/api/attendance/latest?limit=${limit}`);
 
@@ -66,6 +66,21 @@ class AttendanceService {
   }
 
   async getTodayAttendance(): Promise<AttendanceData[]> {
+    if (getApiMode() === 'mock') {
+      const today = new Date().toISOString().split('T')[0];
+      const response = await mockAttendanceAPI.getAll({ page: 1, limit: 200, startDate: today, endDate: today });
+      const records = response.data || [];
+      return records
+        .filter(r => r.checkIn || r.checkOut)
+        .map(r => ({
+          id: String(r.id),
+          employeeName: r.teacherName || r.teacher?.name || 'Unknown',
+          type: (r.checkOut ? 'check-out' : 'check-in') as 'check-in' | 'check-out',
+          timestamp: new Date(r.checkOut || r.checkIn || new Date().toISOString()),
+          location: r.location || 'Sekolah',
+        }));
+    }
+
     try {
       const today = new Date();
       const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());

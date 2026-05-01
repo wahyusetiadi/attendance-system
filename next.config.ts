@@ -5,15 +5,25 @@ const nextConfig: NextConfig = {
   // Output untuk Docker deployment
   output: 'standalone',
   
-  // Disable telemetry
-  // telemetry: false,
+  // Telemetry is controlled via env (NEXT_TELEMETRY_DISABLED)
   
   // API rewrites
   async rewrites() {
+    const apiMode = process.env.NEXT_PUBLIC_API_MODE || "mock";
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+
+    // Default aman untuk demo / Vercel: tidak melakukan proxy ke backend
+    if (apiMode !== "real") return [];
+
+    if (!apiUrl) {
+      console.warn("[next.config] NEXT_PUBLIC_API_MODE=real tapi NEXT_PUBLIC_API_URL kosong. Rewrites dimatikan.");
+      return [];
+    }
+
     return [
       {
-        source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL}/:path*`,
+        source: "/api/:path*",
+        destination: `${apiUrl}/:path*`,
       },
     ];
   },
@@ -41,6 +51,8 @@ const nextConfig: NextConfig = {
   env: {
     BUILD_ENV: process.env.BUILD_ENV || 'production',
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+    NEXT_PUBLIC_API_MODE: process.env.NEXT_PUBLIC_API_MODE || "mock",
+    NEXT_PUBLIC_ENABLE_MOCK_DEVTOOLS: process.env.NEXT_PUBLIC_ENABLE_MOCK_DEVTOOLS || "false",
   },
 
   // Webpack: perbaikan alias + fallback

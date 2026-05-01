@@ -1,33 +1,43 @@
-// // src/app/api/notifications/mark-read/route.ts
-// import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
 
-// export async function POST(request: NextRequest) {
-//   try {
-//     const { id } = await request.json();
+declare global {
+  // eslint-disable-next-line no-var
+  var pendingNotifications: Array<Record<string, unknown>> | undefined;
+}
 
-//     if (!id) {
-//       return NextResponse.json(
-//         { success: false, message: 'Notification ID is required' },
-//         { status: 400 }
-//       );
-//     }
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json().catch(() => ({}));
+    const id = body?.id;
 
-//     // Untuk sementara, kita hanya return success
-//     // Karena backend tidak memiliki endpoint mark-read individual
-//     return NextResponse.json({
-//       success: true,
-//       message: 'Notification marked as read',
-//       timestamp: new Date().toISOString()
-//     });
-//   } catch (error) {
-//     console.error('Error marking notification as read:', error);
-//     return NextResponse.json(
-//       { 
-//         success: false, 
-//         message: 'Error marking notification as read',
-//         timestamp: new Date().toISOString()
-//       },
-//       { status: 500 }
-//     );
-//   }
-// }
+    if (!id) {
+      return NextResponse.json(
+        { success: false, message: "Notification ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const list = global.pendingNotifications || [];
+    const idx = list.findIndex((n) => n.id === id);
+    if (idx >= 0) {
+      list[idx] = { ...list[idx], read: true };
+      global.pendingNotifications = list;
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Notification marked as read",
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("Error marking notification as read:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Error marking notification as read",
+        timestamp: new Date().toISOString(),
+      },
+      { status: 500 }
+    );
+  }
+}

@@ -1,11 +1,7 @@
 // src/service/notification.service.ts
+import { getApiMode } from '@/lib/apiMode';
+
 class NotificationService {
-  private baseUrl: string;
-
-  constructor() {
-    this.baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-  }
-
   private getAuthToken(): string | null {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem('authToken');
@@ -14,7 +10,7 @@ class NotificationService {
   private async fetchWithAuth(endpoint: string, options: RequestInit = {}): Promise<Response> {
     const token = this.getAuthToken();
 
-    return fetch(`${this.baseUrl}${endpoint}`, {
+    return fetch(endpoint, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
@@ -26,7 +22,12 @@ class NotificationService {
 
   async getNotifications(limit: number = 10): Promise<any[]> {
     try {
-      const response = await this.fetchWithAuth(`/api/notifications?limit=${limit}`);
+      // In demo/mock mode, only local Next route exists
+      const endpoint = getApiMode() === 'mock'
+        ? `/api/notifications/pending?limit=${limit}`
+        : `/api/notifications?limit=${limit}`;
+
+      const response = await this.fetchWithAuth(endpoint);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -35,7 +36,8 @@ class NotificationService {
       const data = await response.json();
 
       if (data.success) {
-        return data.data.map((notification: any) => ({
+        const list = data.data || data.notifications || [];
+        return list.map((notification: any) => ({
           ...notification,
           timestamp: new Date(notification.timestamp)
         }));
@@ -50,7 +52,8 @@ class NotificationService {
 
   async clearNotifications(): Promise<boolean> {
     try {
-      const response = await this.fetchWithAuth('/api/notifications', {
+      const endpoint = getApiMode() === 'mock' ? '/api/notifications/pending' : '/api/notifications';
+      const response = await this.fetchWithAuth(endpoint, {
         method: 'DELETE',
       });
 
