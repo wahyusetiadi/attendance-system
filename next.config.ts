@@ -32,8 +32,11 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
+
+  experimental: {
+    // Next.js build uses child_process workers by default; on some Windows setups this can fail with `spawn EPERM`.
+    // Switching to worker_threads avoids spawning processes.
+    workerThreads: true,
   },
   
   // Image optimization
