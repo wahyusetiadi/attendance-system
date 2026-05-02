@@ -126,6 +126,10 @@ export const LoginForm: React.FC = () => {
           'Sign In'
         )}
       </Button>
+
+      <div className="text-sm text-muted-foreground">
+        <p>Akun Demo: admin@example.com / password: admin123</p>
+      </div>
     </form>
   );
 };
